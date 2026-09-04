@@ -12,6 +12,7 @@ let _wired = false;
 function _boot() {
   if (_wired) return;       // loader may call this once DOM is already ready
   _wired = true;
+  _wireViewport();          // publish the measured height before anything lays out
   _wireTopbar();
   _wireSidebar();
 

@@ -10,6 +10,9 @@
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 7%, var(--surface)) 0%, var(--bg) 100%);
   border-right: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
 }
+/* Measured height (js/shell/viewport.js) — this is what keeps .new-group,
+   the sidebar's last control, inside the visible area on a phone. */
+html.app-h .sidebar { height: var(--app-h); }
 .logo {
   display: flex; align-items: center; gap: 10px;
   padding: 20px 20px 18px; font-size: 17px; font-weight: 700;

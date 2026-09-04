@@ -8,13 +8,15 @@
   --text-secondary: #a5b4fc;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-/* height twice on purpose: 100vh is the viewport with the phone browser's
-   toolbars HIDDEN, so an app shell sized to it puts its own bottom edge behind
-   them — the sidebar's New Group button and the last line of any page became
-   unreachable. 100dvh tracks the toolbars as they retract and reappear. The vh
-   line stays as the fallback for browsers without dvh. */
+/* The app shell's height is layered worst-to-best, because no CSS unit can
+   actually answer "how tall is the visible area" on a phone: 100vh is the
+   viewport with the toolbars hidden (so the shell's bottom edge ends up behind
+   them), 100dvh tracks the toolbars but not the keyboard, and --app-h is
+   measured from window.visualViewport by js/shell/viewport.js. The html.app-h
+   scope means the measured rule only applies once a real value exists. */
 body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text);
        height: 100vh; height: 100dvh; display: flex; overflow: hidden; }
+html.app-h body { height: var(--app-h); }
 
 /* ── Global scrollbars ───────────────────────────────────────────
    Applied to every scrollable element, not just one panel. Firefox /
