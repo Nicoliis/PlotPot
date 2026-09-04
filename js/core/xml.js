@@ -3,7 +3,7 @@ function cdata(s) { return '<![CDATA[' + (s||'').replace(/\]\]>/g, ']]]]><![CDAT
 
 /* ── XML: full round-trip (import re-creates exactly what export wrote) ──
    Carries every group field the app now uses: type (incl. 'menu'),
-   visibility, nesting (parent), intro, per-item template, ids, refs, parents. */
+   visibility, nesting (parent), intro, per-item template, ids, parents. */
 function exportXML() {
   const title = State.currentWorld?.title || '';
   let x = `<?xml version="1.0" encoding="UTF-8"?>\n<plotpot title="${esc(title)}">\n`;
@@ -27,7 +27,6 @@ function exportXML() {
     } else if (g.type !== 'menu') {
       for (const item of (g.items || [])) {
         x += `      <item id="${esc(item.id || '')}" name="${esc(item.name)}">\n`;
-        x += `        <refs>${(item.references||[]).map(r=>`<ref>${esc(r)}</ref>`).join('')}</refs>\n`;
         if (g.type === 'graph')
           x += `        <parents>${(item.parents||[]).map(p=>`<parent>${esc(p)}</parent>`).join('')}</parents>\n`;
         x += `        <content>${cdata(item.content || '')}</content>\n      </item>\n`;
@@ -69,10 +68,9 @@ function importXML(xmlStr) {
       group.items = [];
       g.querySelectorAll(':scope > item').forEach(el => {
         const item = {
-          id:         el.getAttribute('id') || generateId(),
-          name:       el.getAttribute('name'),
-          references: [...el.querySelectorAll('refs > ref')].map(r => r.textContent),
-          content:    el.querySelector('content')?.textContent || '',
+          id:      el.getAttribute('id') || generateId(),
+          name:    el.getAttribute('name'),
+          content: el.querySelector('content')?.textContent || '',
         };
         if (type === 'graph')
           item.parents = [...el.querySelectorAll('parents > parent')].map(p => p.textContent);
@@ -105,8 +103,6 @@ function exportMarkdown() {
     } else if (group.type !== 'menu') {
       (group.items || []).forEach(it => {
         md += H(depth + 3) + (it.name || 'Untitled') + '\n\n';
-        if (it.references && it.references.length)
-          md += '*Related: ' + it.references.map(refDisplay).join(', ') + '*\n\n';
         if (group.type === 'graph' && it.parents && it.parents.length)
           md += '*Follows: ' + it.parents.join(', ') + '*\n\n';
         if (it.content && it.content.trim()) md += it.content.trim() + '\n\n';

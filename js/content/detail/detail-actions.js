@@ -1,7 +1,6 @@
 // Shared mutable state written by renderDetailView, read by the action handlers.
 // Must be var (not let/const) so they land on window and are visible to detail.js.
 var _detailMd      = '';
-var _detailRefs    = null;
 var _detailParents = null;
 
 function _saveDetail() {
@@ -13,9 +12,8 @@ function _saveDetail() {
   const isNew = itemIndex === null;
   const item  = isNew ? { id: generateId() } : group.items[itemIndex];
 
-  item.name       = name;
-  item.content    = _detailMd;
-  item.references = _detailRefs ? _detailRefs.getRefs() : (item.references || []);
+  item.name    = name;
+  item.content = _detailMd;
 
   if (group.type === 'graph')
     item.parents = _detailParents ? _detailParents.getParents() : (item.parents || []);

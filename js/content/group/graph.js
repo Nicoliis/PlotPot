@@ -11,18 +11,12 @@ function renderGraph(group) {
     .map((item, i) => ({ item, i, level: levels[i] }))
     .sort((a, b) => a.level - b.level);
 
-  // Chronological list (topologically sorted)
-  const chronoGrid = UI.make('div').class('list-view');
-  sorted.forEach(({ item, i }) =>
-    chronoGrid.withChilds(UI.make('div').execute(el =>
-      el.appendChild(makeItemCard(item, () => navigateToItem(group.slug, i), itemIsUnseen(group.slug, item)))
-    ))
-  );
-  if (State.editMode)
-    chronoGrid.withChilds(
-      UI.make('div').class('item-card', 'new-item-card').text('+ New Beat')
-        .on('click', () => navigateToNewItem(group.slug))
-    );
+  // Chronological list (topologically sorted) — cards, or every beat in full.
+  // `sorted` is already [{ item, i, level }], which is exactly the entry shape
+  // groupItemsEl wants, so the topological order carries over untouched.
+  // Dragging can only reorder beats within a level: Array.sort is stable, so
+  // array order is the tie-break, and a cross-level drop would be a no-op.
+  const chrono = groupItemsEl(group, sorted, 'Beat', (from, to) => from.level === to.level);
 
   // DAG visualisation
   const dagWrap = UI.make('div').class('dag-view');
@@ -34,7 +28,7 @@ function renderGraph(group) {
   wrap.withChilds(
     UI.make('div').class('graph-columns').withChilds(
       UI.make('div').withChilds(UI.make('h3').text('Graph'), dagWrap),
-      UI.make('div').withChilds(UI.make('h3').text('Chronology'), chronoGrid),
+      UI.make('div').withChilds(UI.make('h3').text('Chronology'), chrono),
     )
   );
   content.appendChild(wrap.getElement());

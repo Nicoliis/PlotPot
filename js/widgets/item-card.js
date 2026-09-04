@@ -15,13 +15,5 @@ function makeItemCard(item, onClick, isNew) {
     );
   }
 
-  if (item.references && item.references.length) {
-    const refs = UI.make('div').class('ref-tags').style({ marginTop: '10px' });
-    item.references.forEach(r =>
-      refs.withChilds(UI.make('span').class('ref-tag').text(refDisplay(r)))
-    );
-    card.withChilds(refs);
-  }
-
   return card.getElement();
 }

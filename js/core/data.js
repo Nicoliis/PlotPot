@@ -95,9 +95,6 @@ function timeAgo(iso) {
   return Math.floor(s / 604800) + 'w';
 }
 
-function refDisplay(r) { const i = r.indexOf(':'); return i >= 0 ? r.slice(0, i) : r; }
-function refKey(r)     { const i = r.indexOf(':'); return i >= 0 ? r.slice(i+1) : r; }
-
 function downloadFile(content, filename, mimeType) {
   const blob = new Blob([content], { type: mimeType });
   const url  = URL.createObjectURL(blob);

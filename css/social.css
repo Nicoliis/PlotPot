@@ -352,6 +352,10 @@ textarea.field-input { resize: vertical; font-family: inherit; }
 
 /* List/graph view header: title + Settings button on one row */
 .group-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+/* Right end of the group header: the Cards/Expanded toggle, plus the owner's
+   Settings button when editing. One box, so space-between keeps putting the
+   title left and the controls right once there are two of them. */
+.group-head-actions { display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .btn-sm { font-size: 13px; padding: 6px 12px; }
 .group-intro { margin: 4px 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
 
