@@ -116,4 +116,5 @@ const Auth = (() => {
            signInWithProvider, signInWithGitHub, signInWithGoogle, signOut, onChange };
 })();
 
+Auth.getClient().auth.onAuthStateChange((e,s)=>console.log('AUTH EVENT:',e,'session:',!!s,s?.user?.email))
 window.Auth = Auth;
