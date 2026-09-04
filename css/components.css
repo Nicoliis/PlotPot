@@ -31,7 +31,12 @@
 
 /* ── Markdown textarea / preview ───────────────────────────────── */
 .md-textarea  { width: 100%; min-height: 250px; background: #1e2937; color: #e0e7ff; border: 1px solid #475569; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 13px; resize: vertical; margin-top: 4px; }
-.preview-only { min-height: 120px; line-height: 1.7; }
+/* No min-height here. It used to reserve 120px for the editor's preview pane,
+   but .md-preview sets its own 250px floor, so the only thing this achieved
+   was inflating every OTHER rendered block: a one-line group intro rendered
+   120px tall, leaving a void above the first card, and .expanded-item needed
+   an override to undo it. */
+.preview-only { line-height: 1.7; }
 /* ── Markdown heading scale ──────────────────────────────────────
    Size alone is a COMPARATIVE cue: it only tells you the level when two of
    them are on screen together. So every level also gets a categorical cue you
@@ -96,33 +101,35 @@
    the whole window; prose does not. 860px matches .detail-view, so an entry
    reads at the same measure here as it does on its own page — the group header
    and intro stay full-width, exactly as they do above a detail view. */
-.expanded-view  { max-width: 860px; margin-top: 16px; display: flex; flex-direction: column; }
-/* Each entry sits on a slab that fades out at the top and bottom, so the
-   boundary between two cards outweighs anything inside one. It has to: an h1's
-   2px accent rule was otherwise the strongest line on the page, which made a
-   heading *within* a card louder than the break *between* cards — the
-   hierarchy exactly backwards. The slab does most of the work, the rule below
-   confirms it, and the extra air separates them. */
+/* margin-top is small because every entry now carries its own top margin for
+   the rule that sits in it — including the first. */
+.expanded-view  { max-width: 860px; margin-top: 4px; display: flex; flex-direction: column; }
+/* The wash sits on the entry's HEAD only, strongest under the rule and gone by
+   the time the prose starts, so it reads as a masthead band rather than
+   tinting the whole column. background-size caps it; without that a
+   percentage-based gradient would stretch to the entry's full height and a
+   long entry would be washed end to end while a short one wasn't. */
 .expanded-item {
   position: relative;
   padding: 30px 0 34px;
+  margin-top: 30px;
   background: linear-gradient(180deg,
-    transparent 0,
-    color-mix(in srgb, var(--accent) 11%, transparent) 16%,
-    color-mix(in srgb, var(--accent) 11%, transparent) 84%,
-    transparent 100%);
+    color-mix(in srgb, var(--accent) 15%, transparent) 0,
+    color-mix(in srgb, var(--accent) 8%, transparent) 45%,
+    transparent 100%) no-repeat;
+  background-size: 100% 170px;
 }
-.expanded-item:first-child { padding-top: 10px; }
-.expanded-item + .expanded-item { margin-top: 30px; }
 
-/* Sits in the gap on the LATER sibling — still not an <hr>, so it can never
-   dangle after the last entry or above the edit-mode "New" button.
+/* On EVERY entry, first included: the rule is what opens a card, so the first
+   card wants one as much as the rest. Still a pseudo-element on the entry
+   rather than an <hr>, so it cannot dangle after the last one or above the
+   edit-mode "New" button.
    3px and near-opaque on purpose: a heading's rule is 2px at 34% accent and
    runs edge to edge, and fading the ends costs visual mass, so a 2px fading
    line at 55% still lost to it. This has to out-weigh the loudest line inside
    a card, or the break between cards reads as the smaller event. The glow adds
    presence without adding a fourth hard edge to the page. */
-.expanded-item + .expanded-item::before {
+.expanded-item::before {
   content: ''; position: absolute; left: 0; right: 0; top: -15px; height: 3px;
   border-radius: 3px;
   background: linear-gradient(90deg,
@@ -133,12 +140,16 @@
   box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
-.expanded-head       { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.expanded-title-wrap { display: inline-flex; align-items: baseline; gap: 9px; min-width: 0; }
-.expanded-title      { font-size: 26px; font-weight: 700; margin: 0 0 10px; min-width: 0; }
+/* Grid, not flex with space-between: the title is centred in the ENTRY, not in
+   whatever space the edit-mode buttons leave over. Matching 1fr tracks either
+   side keep the middle column centred whether or not the buttons are there, so
+   the title doesn't shift when you toggle edit mode. */
+.expanded-head       { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; gap: 12px; }
+.expanded-title-wrap { grid-column: 2; display: inline-flex; align-items: baseline; gap: 9px; min-width: 0; }
+.expanded-title      { font-size: 26px; font-weight: 700; margin: 0 0 10px; min-width: 0; text-align: center; }
 .expanded-title a       { color: inherit; text-decoration: none; }
 .expanded-title a:hover { color: var(--text-secondary); text-decoration: underline; }
-.expanded-actions    { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.expanded-actions    { grid-column: 3; justify-self: end; display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .expanded-meta       { margin-bottom: 12px; }
 
 /* Unseen marker, modelled on .menu-dot. Sits beside the title rather than
@@ -146,17 +157,14 @@
 .expanded-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0;
                 box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 
-/* .preview-only reserves 120px for an editor pane and gives a leading heading
-   a top margin — neither is wanted for a section inside a longer page. */
-.expanded-item .preview-only { min-height: 0; }
+/* .preview-only gives a leading heading a top margin, which isn't wanted for a
+   section inside a longer page. (The min-height override that used to live here
+   is gone: .preview-only no longer sets one.) */
 .expanded-item .preview-only > :first-child { margin-top: 0; }
 
-/* The expanded view's inline editor. 0,2,0 on the floor is deliberate:
-   `.expanded-item .preview-only { min-height: 0 }` above is also 0,2,0, and a
-   plain `.expanded-live` would lose to it. */
+/* The expanded view's inline editor. */
 .expanded-live { background: #1e2937; border: 1px solid #475569; border-radius: 8px;
-                 padding: 12px 14px; }
-.expanded-item .expanded-live { min-height: 80px; }
+                 padding: 12px 14px; min-height: 80px; }
 .expanded-live:focus { border-color: var(--primary); }
 .expanded-empty { color: var(--text-muted); font-style: italic; padding: 4px 0; }
 .expanded-new   { align-self: flex-start; margin-top: 4px; }
