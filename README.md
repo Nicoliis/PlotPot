@@ -17,6 +17,8 @@ JavaScript served as static files. Supabase provides auth and storage.
 - **Social** — public worlds, profiles, following worlds and people, likes, tag
   suggestions, and a notification inbox.
 - **New-content tracking** — per-element "seen" state synced across devices.
+- **Shareable links** — every screen has a URL; **Copy link** in the ⋯ menu (and
+  on a card) hands you a link straight to that world, group or card.
 - **Import / export** — XML round-trip, plus Markdown export.
 
 ## Running it
@@ -69,6 +71,36 @@ browser. Every table has Row-Level Security enabled, so what a signed-in user ca
 read and write is enforced by Postgres, not by the client. The login gate in
 `shared/auth-gate.js` is UX only; it hides the UI, it does not protect data.
 
+## URLs
+
+GitHub Pages serves one file and knows nothing about our screens, so there are
+no real paths to route on — `/characters/aria` would just 404. The route lives
+in the query string instead, which any static host hands back untouched:
+
+| URL | Screen |
+| --- | --- |
+| `/` | the gallery (the default) |
+| `/?site=profile&id=<userId>` | an author's profile |
+| `/?site=new-world` | the create-a-world form |
+| `/?site=world&id=<worldId>` | a world's home page |
+| `/?site=world&id=<worldId>&g=<groupSlug>` | a group inside it |
+| `/?site=world&id=<worldId>&g=<groupSlug>&card=<itemId>` | one card in that group |
+
+`js/shell/url.js` owns both directions: every navigation in `router.js` mirrors
+its state into the address bar, and Back/Forward (or a pasted link) replays a
+URL back into the app. A link the app can't honour — a deleted world, a renamed
+group, a private one you can't see — degrades to the nearest thing it can show
+and the address bar is rewritten to match, so it never points at a screen you
+aren't on.
+
+A shared link survives sign-in, including the OAuth round trip: the provider
+sends you back to a bare URL, so `Auth.signInWithProvider` parks the query in
+`sessionStorage` first and `Url.start()` picks it up.
+
+Private worlds stay private — a link to one is only a *route*. Row-Level
+Security still decides whether the world loads, so a stranger following the link
+gets "World not found or not accessible" and lands on the gallery.
+
 ## Deploying
 
 Push to GitHub and enable **Pages** on the branch root — there is nothing to
@@ -106,6 +138,7 @@ js/core/                 no screen position — model, services, utilities
 js/shell/                the persistent frame around the content area
   boot.js                bootstrap — the only file that runs on load; stays last
   router.js              navigation + which view is active
+  url.js                 query-string routing: shareable links, Back/Forward
   sidebar/
     sidebar.js           the left menu tree
     index-editor.js      owner-only editor for that tree's order/nesting
@@ -113,7 +146,7 @@ js/shell/                the persistent frame around the content area
     wiring.js            topbar entry point; brand, hamburger, dropdown behaviour
     chrome.js            breadcrumb + which topbar controls are visible
     mode-toggle.js       View / Edit
-    world-menu.js        ⋯ settings, export XML/Markdown, import
+    world-menu.js        ⋯ copy link, settings, export XML/Markdown, import
     search.js            search box
     notifications.js     🔔 bell + its dropdown panel
     user-menu.js         👤 avatar, profile, sign out

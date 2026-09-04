@@ -1,4 +1,4 @@
-/* The "⋯" world-actions dropdown: settings, export XML/Markdown, import XML. */
+/* The "⋯" world-actions dropdown: share, settings, export XML/Markdown, import XML. */
 
 function _worldFileName() {
   const base = (State.currentWorld?.title || 'plotpot')
@@ -7,6 +7,9 @@ function _worldFileName() {
 }
 
 function _wireWorldMenu() {
+  // Shares whatever is on screen — the world, a group, or a single card.
+  UI.get('btn-share').addEventListener('click', () => Url.copy());
+
   UI.get('btn-world-settings').addEventListener('click', () => openWorldSettings());
 
   UI.get('btn-export').addEventListener('click', () => {

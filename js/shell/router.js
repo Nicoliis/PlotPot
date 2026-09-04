@@ -1,4 +1,7 @@
-/* ── Top-level navigation (gallery / profile / world) ─────────── */
+/* ── Top-level navigation (gallery / profile / world) ─────────────
+   Every entry point ends with Url.sync(), which mirrors the new State into
+   the address bar so any screen can be linked to. url.js mutes that while it
+   is replaying a link, so this stays a plain one-liner everywhere. */
 
 function goGallery() {
   leaveCurrentElement();
@@ -9,6 +12,7 @@ function goGallery() {
   _chrome();
   buildSidebar();
   renderGallery();
+  Url.sync();
 }
 
 function goProfile(userId) {
@@ -21,6 +25,7 @@ function goProfile(userId) {
   _chrome();
   buildSidebar();
   renderProfile(State.profileViewing);
+  Url.sync();
 }
 
 function goNewWorld() {
@@ -32,16 +37,18 @@ function goNewWorld() {
   _chrome();
   buildSidebar();
   renderWorldForm('create');
+  Url.sync();
 }
 
-// Open a world by id (always starts in view mode).
+// Open a world by id (always starts in view mode). Returns true on success —
+// url.js needs to know whether a shared ?site=world link actually resolved.
 async function openWorld(id) {
   leaveCurrentElement();   // leaving whatever element was open in the previous world
   const content = UI.get('main-content');
   content.innerHTML = '<p style="color:var(--text-muted);padding:12px">Loading world…</p>';
 
   const world = await Cloud.getWorld(id);
-  if (!world) { alert('World not found or not accessible.'); return goGallery(); }
+  if (!world) { alert('World not found or not accessible.'); goGallery(); return false; }
 
   // Guard against an empty/legacy data blob.
   if (!world.data || !world.data.groups) world.data = Cloud.blankWorldData();
@@ -57,6 +64,8 @@ async function openWorld(id) {
   _chrome();
   buildSidebar();
   renderCurrentView();
+  Url.sync();
+  return true;
 }
 
 function openWorldSettings() {
@@ -67,6 +76,7 @@ function openWorldSettings() {
   _chrome();
   buildSidebar();
   renderWorldForm('edit');
+  Url.sync();
 }
 
 /* ── Within-world navigation ──────────────────────────────────── */
@@ -78,6 +88,7 @@ function navigate(slug) {
   _chrome();
   buildSidebar();
   renderCurrentView();
+  Url.sync();
 }
 
 function navigateToItem(groupSlug, itemIndex) {
@@ -87,6 +98,7 @@ function navigateToItem(groupSlug, itemIndex) {
   _chrome();
   buildSidebar();
   renderDetailView();
+  Url.sync();
 }
 
 function navigateToNewItem(groupSlug) {
@@ -103,6 +115,7 @@ function openGroupSettings(slug) {
   _chrome();
   buildSidebar();
   renderGroupSettings(getGroup(slug));
+  Url.sync();
 }
 
 function openIndexEditor() {
@@ -113,6 +126,7 @@ function openIndexEditor() {
   _chrome();
   buildSidebar();
   renderIndexEditor();
+  Url.sync();
 }
 
 /* ── Render the active within-world view ──────────────────────── */

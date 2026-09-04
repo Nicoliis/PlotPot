@@ -30,11 +30,12 @@ function _boot() {
       try { State.following = await Cloud.loadFollowing(); } catch (e) { console.error(e); }
       try { State.likes = await Cloud.loadLikes(); } catch (e) { console.error(e); }
       if (!State.following.worlds.size && !State.following.users.size) State.homeTab = 'discover';
-      goGallery();
+      // Honour a shared ?site=…&id=… link; with nothing to open it lands on the gallery.
+      await Url.start();
       _refreshNotifBadge();
     });
   } else {
-    goGallery();
+    Url.start();
   }
 }
 

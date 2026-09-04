@@ -43,12 +43,18 @@ const Auth = (() => {
   }
 
   // Remove OAuth tokens / PKCE code from the address bar (and browser history)
-  // after a redirect login, so credentials never linger in the URL.
+  // after a redirect login, so credentials never linger in the URL. Only the
+  // auth params go: anything else in the query belongs to the page (PlotPot
+  // routes on ?site=…&id=…) and has to survive.
   function _stripAuthParams() {
     const { hash, search, pathname } = window.location;
     const dirty = /(access_token|refresh_token|provider_token|expires_at|token_type)=/.test(hash)
                || /[?&](code|state)=/.test(search);
-    if (dirty) window.history.replaceState(null, document.title, pathname);
+    if (!dirty) return;
+    const params = new URLSearchParams(search);
+    ['code', 'state', 'error', 'error_code', 'error_description'].forEach(k => params.delete(k));
+    const rest = params.toString();
+    window.history.replaceState(null, document.title, pathname + (rest ? '?' + rest : ''));
   }
 
   async function _doInit() {
@@ -58,10 +64,28 @@ const Auth = (() => {
     _client = createClient(
       window.NICOTOLS_CONFIG.supabaseUrl,
       window.NICOTOLS_CONFIG.supabaseKey,
-      // PKCE keeps tokens out of the URL fragment (a short-lived ?code= is used
-      // and exchanged in the background), and we still scrub the URL afterwards.
-      { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true } }
+      {
+        auth: {
+          // PKCE keeps tokens out of the URL fragment (a short-lived ?code= is used
+          // and exchanged in the background), and we still scrub the URL afterwards.
+          flowType: 'pkce',
+          detectSessionInUrl: true,
+          persistSession: true,
+          autoRefreshToken: true,
+          // Pin the store explicitly. Left to its own feature-detection, supabase-js
+          // silently falls back to an in-memory adapter if its probe fails for any
+          // reason (privacy extensions can trip it during page load). That "works"
+          // until the first OAuth redirect, at which point the PKCE verifier — held
+          // only in RAM — is gone, and sign-in fails with no error anywhere.
+          storage: window.localStorage,
+        },
+      }
     );
+
+    // If the store still isn't the real thing, nothing will survive the redirect.
+    if (_client.auth.storage !== window.localStorage) {
+      console.warn('[auth] Supabase is not using localStorage — OAuth sign-in will not persist.');
+    }
 
     // Did the provider just send us back? If so we must end up with a session;
     // coming home with a ?code= and nothing to show for it means the PKCE
@@ -128,6 +152,11 @@ const Auth = (() => {
 
     // Send a clean URL: a leftover ?code= or #error= from a previous attempt
     // would be echoed back here and may not match the Supabase redirect allow-list.
+    // That also drops the page's own query, so park it — someone who follows a
+    // shared link and signs in with a provider should still land on that link.
+    // sessionStorage is scoped to this tab and the redirect returns to it.
+    try { sessionStorage.setItem('pp:return-to', window.location.search); } catch (e) { /* private mode */ }
+
     const { error } = await _client.auth.signInWithOAuth({
       provider,
       options: { redirectTo: window.location.origin + window.location.pathname },

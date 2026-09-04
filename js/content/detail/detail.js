@@ -16,7 +16,12 @@ function renderDetailView() {
 
   // ── action bar ─────────────────────────────────────────────────
   const backBtn = UI.make('button').class('btn-secondary').innerHTML(Icons.label('back', 'Back')).on('click', () => navigate(groupSlug));
-  const bar = UI.make('div').class('detail-bar').withChilds(backBtn);
+  const left = UI.make('div').class('detail-actions').withChilds(backBtn);
+  // A card that hasn't been saved yet has no id, so there is nothing to link to.
+  if (!isNew)
+    left.withChilds(UI.make('button').class('btn-secondary')
+      .innerHTML(Icons.label('link', 'Copy link')).on('click', () => Url.copy()));
+  const bar = UI.make('div').class('detail-bar').withChilds(left);
   if (State.editMode) {
     const actions = UI.make('div').class('detail-actions');
     if (!isNew) actions.withChilds(UI.make('button').class('btn-danger').text('Delete').on('click', _deleteDetail));
