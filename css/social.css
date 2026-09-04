@@ -19,9 +19,19 @@ body.mode-world .content    { background:
   radial-gradient(1000px 600px at 80% -5%, rgba(217,164,65,0.06), transparent 55%), var(--bg); }
 body.mode-world .btn-primary     { background: var(--accent); color: #2a2008; font-weight: 600; }
 body.mode-world .preview-only    { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 16px; }
+/* The same stepped brightness as components.css, in the world's gold register.
+   The h1/h2 rules pick up --accent (#d9a441 in a world) on their own. */
 body.mode-world .preview-only h1,
 body.mode-world .preview-only h2,
-body.mode-world .preview-only h3 { color: #f0d7a3; }
+body.mode-world .preview-only h3,
+body.mode-world .preview-only h4,
+body.mode-world .preview-only h5,
+body.mode-world .preview-only h6 { color: #f0d7a3; }
+body.mode-world .preview-only h1,
+body.mode-world .preview-only h2 { color: #f9e8c2; }
+body.mode-world .preview-only h4 { color: #e6c98d; }
+body.mode-world .preview-only h5 { color: #d9b877; }
+body.mode-world .preview-only h6 { color: #c0a061; }
 
 /* ── Icons ─────────────────────────────────────────────────────── */
 .ic { display: inline-flex; align-items: center; flex-shrink: 0; }

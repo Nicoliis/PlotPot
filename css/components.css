@@ -32,7 +32,47 @@
 /* ── Markdown textarea / preview ───────────────────────────────── */
 .md-textarea  { width: 100%; min-height: 250px; background: #1e2937; color: #e0e7ff; border: 1px solid #475569; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 13px; resize: vertical; margin-top: 4px; }
 .preview-only { min-height: 120px; line-height: 1.7; }
-.preview-only h1,.preview-only h2,.preview-only h3 { color: #c7d2fe; margin: 1em 0 0.4em; }
+/* ── Markdown heading scale ──────────────────────────────────────
+   Size alone is a COMPARATIVE cue: it only tells you the level when two of
+   them are on screen together. So every level also gets a categorical cue you
+   can read in isolation — h1 a thick rule, h2 a thin one, h5/h6 small caps —
+   plus a stepped brightness. Sizes stay under .expanded-title (26px) and
+   .detail-title (30px) so a heading in a body never outshouts the card's own
+   name. The live editor's active block holds a real h1-h6, so this one scale
+   styles both the rendered and the being-edited state. */
+.preview-only h1,.preview-only h2,.preview-only h3,
+.preview-only h4,.preview-only h5,.preview-only h6 {
+  color: #c7d2fe; font-weight: 700; line-height: 1.25;
+}
+.preview-only h1 {
+  font-size: 1.6em; color: #dbe3ff; letter-spacing: -0.01em;
+  margin: 1.1em 0 0.5em; padding-bottom: 0.24em;
+  border-bottom: 2px solid color-mix(in srgb, var(--accent) 34%, transparent);
+}
+.preview-only h2 {
+  font-size: 1.32em; color: #dbe3ff;
+  margin: 1.05em 0 0.45em; padding-bottom: 0.2em;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.preview-only h3 { font-size: 1.14em; margin: 1em 0 0.4em; }
+/* h4 is italic, not just smaller: without a second axis it and h3 are both
+   "bold, no rule" and a hair apart in size — indistinguishable on their own. */
+.preview-only h4 {
+  font-size: 1em; color: #b3c0f8; font-style: italic; margin: 1em 0 0.35em;
+}
+/* Below h4 there is no room left to shrink, so these switch cue entirely and
+   read as small-caps labels rather than as slightly-bold body text. h6 drops a
+   weight so it isn't just "h5 but smaller". */
+.preview-only h5 {
+  font-size: 0.9em; color: var(--text-secondary); margin: 1.1em 0 0.3em;
+  text-transform: uppercase; letter-spacing: 0.07em;
+}
+.preview-only h6 {
+  /* Not --text-muted (#64748b): at 0.84em that falls below a readable contrast
+     on --surface. Dimmer than h5, still legible. */
+  font-size: 0.84em; color: #8792ab; font-weight: 500; margin: 1.1em 0 0.3em;
+  text-transform: uppercase; letter-spacing: 0.1em;
+}
 .preview-only p   { margin-bottom: 0.75em; }
 .preview-only code { background: #1e2937; padding: 2px 6px; border-radius: 4px; font-size: 0.88em; }
 .preview-only blockquote { border-left: 3px solid var(--primary); padding-left: 12px; color: var(--text-secondary); margin: 8px 0; }
