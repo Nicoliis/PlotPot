@@ -15,8 +15,17 @@ body.mode-social .content { background:
    definition in layout.css that tints itself via --accent (set just below). */
 body.mode-world { --accent: #d9a441; }
 body.mode-world .topbar     { border-bottom-color: rgba(217,164,65,0.35); }
+/* #142944 is the world's base surface. The left-edge darkening is deliberate
+   here — it started life as the off-canvas drawer's shadow leaking over the
+   page, which was a bug because a shadow paints ON TOP of content. As a
+   background layer it sits behind the text instead, so it reads as depth at
+   the page's edge rather than a smear across the first few characters.
+   background-attachment defaults to `scroll`, which on a scroll container means
+   "fixed to the element", so the edge stays put while the content moves. */
 body.mode-world .content    { background:
-  radial-gradient(1000px 600px at 80% -5%, rgba(217,164,65,0.06), transparent 55%), var(--bg); }
+  linear-gradient(90deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.13) 22px, rgba(0,0,0,0) 64px),
+  radial-gradient(1000px 600px at 80% -5%, rgba(217,164,65,0.07), transparent 55%),
+  #142944; }
 body.mode-world .btn-primary     { background: var(--accent); color: #2a2008; font-weight: 600; }
 body.mode-world .preview-only    { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 16px; }
 /* The same stepped brightness as components.css, in the world's gold register.
@@ -262,9 +271,15 @@ textarea.field-input { resize: vertical; font-family: inherit; }
     position: fixed; top: 0; left: 0; bottom: 0; height: 100vh;
     width: min(82vw, 280px); transform: translateX(-100%);
     transition: transform 0.25s ease; z-index: 1000;
+  }
+  /* The shadow belongs to the OPEN state only. A box-shadow paints from the
+     element's transformed position, so on a closed drawer its 6px offset plus
+     28px blur reached out of the viewport and back over the page — a dark band
+     down the left edge, above the text at z-index 1000. */
+  body.mode-world.sidebar-open .sidebar {
+    transform: translateX(0);
     box-shadow: 6px 0 28px rgba(0,0,0,0.55);
   }
-  body.mode-world.sidebar-open .sidebar { transform: translateX(0); }
   body.mode-world .hamburger { display: inline-flex; }
   .sidebar-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; }
   body.sidebar-open .sidebar-backdrop { display: block; }
