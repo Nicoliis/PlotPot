@@ -13,11 +13,13 @@
  *   Auth.signInWithGitHub()         → shorthand for the above
  *   Auth.signInWithGoogle()         → shorthand for the above
  *   Auth.signOut()
+ *   Auth.getLastError()             → message from a failed redirect login, or null
  *   Auth.onChange(fn)               — fn({ user }) called on session change
  */
 
 const Auth = (() => {
   let _client = null;
+  let _lastError = null;
   let _user = null;
   const _listeners = [];
 
@@ -61,16 +63,33 @@ const Auth = (() => {
       { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true } }
     );
 
+    // Did the provider just send us back? If so we must end up with a session;
+    // coming home with a ?code= and nothing to show for it means the PKCE
+    // verifier didn't survive the round trip. Record it — otherwise the gate
+    // just reappears and the user has no idea why.
+    const returning = /[?&]code=/.test(window.location.search);
+
     const { data: { session } } = await _client.auth.getSession();
     _user = session?.user ?? null;
+
+    if (returning && !_user) {
+      _lastError = 'Sign-in did not complete. The provider approved you, but this ' +
+                   'browser discarded the data needed to finish — usually tracking ' +
+                   'protection or blocked site storage. Allow storage for this site, ' +
+                   'or try another browser.';
+    }
+
     _stripAuthParams();
 
     _client.auth.onAuthStateChange((event, session) => {
       _user = session?.user ?? null;
       if (event === 'SIGNED_IN') _stripAuthParams();
+      if (_user) _lastError = null;
       _notify();
     });
   }
+
+  function getLastError() { const e = _lastError; _lastError = null; return e; }  // read-once
 
   function getUser() { return _user; }
   function getClient() { return _client; }
@@ -92,11 +111,42 @@ const Auth = (() => {
   // dashboard (Authentication → Providers), never in this repo — the browser
   // only ever names the provider and gets redirected.
   async function signInWithProvider(provider) {
-    if (!_client) return;
-    await _client.auth.signInWithOAuth({
+    if (!_client) return { error: { message: 'Supabase is not configured.' } };
+
+    // PKCE stores a one-time "code verifier" in localStorage and reads it back
+    // after the provider redirects us home. Privacy tools and locked-down
+    // storage settings can drop that write, and the failure is invisible: the
+    // provider signs you in, we come back with a ?code=, and there is nothing
+    // to exchange it with. Check before leaving the page so we can say so.
+    const store = _storageCheck();
+    if (!store.ok) {
+      return { error: { message:
+        'This browser is blocking site storage, which sign-in needs. Allow storage / ' +
+        'tracking-protection exceptions for this site, or try another browser. (' + store.reason + ')'
+      } };
+    }
+
+    // Send a clean URL: a leftover ?code= or #error= from a previous attempt
+    // would be echoed back here and may not match the Supabase redirect allow-list.
+    const { error } = await _client.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: window.location.href },
+      options: { redirectTo: window.location.origin + window.location.pathname },
     });
+    return { error };
+  }
+
+  // Round-trip a value through localStorage; a silent revert is as fatal as a throw.
+  function _storageCheck() {
+    const k = '__auth_probe__';
+    try {
+      window.localStorage.setItem(k, '1');
+      const back = window.localStorage.getItem(k);
+      window.localStorage.removeItem(k);
+      if (back !== '1') return { ok: false, reason: 'writes are being discarded' };
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, reason: e.name || 'blocked' };
+    }
   }
 
   const signInWithGitHub = () => signInWithProvider('github');
@@ -112,7 +162,7 @@ const Auth = (() => {
     fn({ user: _user });
   }
 
-  return { init, getUser, getClient, isConfigured, signIn, signUp,
+  return { init, getUser, getClient, isConfigured, getLastError, signIn, signUp,
            signInWithProvider, signInWithGitHub, signInWithGoogle, signOut, onChange };
 })();
 

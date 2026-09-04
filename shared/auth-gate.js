@@ -157,8 +157,25 @@ const AuthGate = (() => {
     _gate.querySelector('#ag-toggle-link').onclick = () =>
       _setMode(_mode === 'signin' ? 'signup' : 'signin');
 
-    _gate.querySelector('#ag-google-btn').onclick = () => Auth.signInWithGoogle();
-    _gate.querySelector('#ag-github-btn').onclick = () => Auth.signInWithGitHub();
+    // A rejected OAuth request returns an error instead of redirecting. Say so —
+    // otherwise the button looks simply dead.
+    const _oauth = (btnId, fn, label) => {
+      const btn = _gate.querySelector(btnId);
+      btn.onclick = async () => {
+        _msg(null);
+        btn.disabled = true;
+        const { error } = (await fn()) || {};
+        btn.disabled = false;
+        if (error) _msg(error.message, 'err');
+        else _msg('Redirecting to ' + label + '…', 'ok');
+      };
+    };
+    _oauth('#ag-google-btn', Auth.signInWithGoogle, 'Google');
+    _oauth('#ag-github-btn', Auth.signInWithGitHub, 'GitHub');
+
+    // Surface a failure carried over from a redirect that came back empty-handed.
+    const carried = Auth.getLastError?.();
+    if (carried) _msg(carried, 'err');
 
     _gate.querySelector('#ag-form').addEventListener('submit', async e => {
       e.preventDefault();
