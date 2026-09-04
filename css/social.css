@@ -21,7 +21,12 @@ body.mode-world .topbar     { border-bottom-color: rgba(217,164,65,0.35); }
    background layer it sits behind the text instead, so it reads as depth at
    the page's edge rather than a smear across the first few characters.
    background-attachment defaults to `scroll`, which on a scroll container means
-   "fixed to the element", so the edge stays put while the content moves. */
+   "fixed to the element", so the edge stays put while the content moves. On a
+   phone .content is NOT a scroll container (the document scrolls instead, see
+   the 720px block), so there the box simply spans the whole page: the left-edge
+   gradient is horizontal and reads the same at any scroll offset, and the
+   radial highlight sits at the top of the page rather than the top of the
+   window. */
 body.mode-world .content    { background:
   linear-gradient(90deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.13) 22px, rgba(0,0,0,0) 64px),
   radial-gradient(1000px 600px at 80% -5%, rgba(217,164,65,0.07), transparent 55%),
@@ -266,6 +271,30 @@ textarea.field-input { resize: vertical; font-family: inherit; }
 .list-view { grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
 
 @media (max-width: 720px) {
+  /* ── The phone scrolls the DOCUMENT, not a box inside it ────────
+     On a desktop this app is a fixed-height shell with .content scrolling
+     inside it, sized from --app-h / dvh. That design has one failure mode with
+     no way out: if the height is ever a little too tall — a stale measurement,
+     a toolbar that reappears without firing an event, a browser that reports
+     the toolbar-hidden height — the strip below the fold is cut off by
+     overflow:hidden and NOTHING can scroll to it. The end of a page becomes
+     unreadable rather than just cramped. Two rounds of fixes here were both
+     attempts to get that one number right; this stops depending on it.
+
+     A phone does not need the shell. Scrolling the document natively makes the
+     bottom of a page reachable by construction — getting there is the browser's
+     own job, it cannot be clipped by a wrong number, and the URL bar retracts
+     as you read, which the fixed shell actively prevented. position:sticky
+     keeps the topbar in place, which is all the shell was buying here.
+
+     --app-h still earns its keep just below, for the drawer: that IS
+     position:fixed and genuinely cannot lean on document scrolling. */
+  body                  { height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }
+  html.app-h body       { height: auto; min-height: 100dvh; }
+  .main, .content       { overflow: visible; }
+  /* Under the drawer (1000) and its backdrop (999), over page content. */
+  .topbar               { position: sticky; top: 0; z-index: 500; }
+
   /* World sidebar becomes an off-canvas drawer */
   body.mode-world .sidebar {
     position: fixed; top: 0; left: 0; bottom: 0; height: 100vh; height: 100dvh;
@@ -274,7 +303,7 @@ textarea.field-input { resize: vertical; font-family: inherit; }
   }
   /* Needs to out-specify the rule above (0,2,1), so it can't just reuse the
      html.app-h .sidebar rule from layout.css. */
-  html.app-h body.mode-world .sidebar { height: var(--app-h); }
+  html.app-h body.mode-world .sidebar { height: var(--app-h); height: min(var(--app-h), 100dvh); }
   /* The shadow belongs to the OPEN state only. A box-shadow paints from the
      element's transformed position, so on a closed drawer its 6px offset plus
      28px blur reached out of the viewport and back over the page — a dark band
@@ -284,7 +313,10 @@ textarea.field-input { resize: vertical; font-family: inherit; }
     box-shadow: 6px 0 28px rgba(0,0,0,0.55);
   }
   body.mode-world .hamburger { display: inline-flex; }
-  .sidebar-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; }
+  /* touch-action, now that the document itself scrolls: a drag starting on the
+     backdrop would otherwise walk up to the document and scroll the page behind
+     the open drawer. It could not before, when nothing outside .content scrolled. */
+  .sidebar-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; touch-action: none; }
   body.sidebar-open .sidebar-backdrop { display: block; }
 
   /* Condense the topbar so everything fits one row */
@@ -297,11 +329,12 @@ textarea.field-input { resize: vertical; font-family: inherit; }
   .seg-btn { padding: 5px 9px; }
 
   /* Content + headings */
-  /* A reading margin, not viewport compensation — keeping the shell out from
-     behind the toolbars is --app-h's job now. A last line sitting flush on its
-     container's edge is uncomfortable even when nothing covers it. env() is the
-     OS's own measurement, 0 unless the page opts into viewport-fit=cover. */
-  .content { padding: 16px 14px calc(20px + env(safe-area-inset-bottom, 0px)); }
+  /* A reading margin, not viewport compensation: the document scrolls, so the
+     browser guarantees the last line is reachable. This only keeps it from
+     sitting flush against the bottom edge, and gives the toolbars something to
+     animate over. env() is the OS's own measurement, 0 unless the page opts
+     into viewport-fit=cover. */
+  .content { padding: 16px 14px calc(32px + env(safe-area-inset-bottom, 0px)); }
   .home { gap: 18px; }
   .gallery-head h1 { font-size: 24px; }
   .world-header-title, .world-header .world-header-title { font-size: 26px; }
