@@ -173,6 +173,12 @@
   content: attr(data-mdl-placeholder); color: var(--text-muted);
 }
 
+/* Explicit move buttons on each card, edit mode only. In the card's flow
+   rather than absolutely positioned, so they can never overlap its text —
+   and always visible, because a hover-reveal would be invisible on the touch
+   devices that need them most (drag-and-drop doesn't fire there at all). */
+.card-order { display: flex; justify-content: flex-end; gap: 4px; margin-top: 12px; }
+
 /* Drag-to-reorder, edit mode only (js/content/group/items.js) */
 .item-card--drag           { cursor: grab; }
 .item-card--drag.dragging  { opacity: 0.4; cursor: grabbing; }

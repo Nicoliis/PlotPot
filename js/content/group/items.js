@@ -28,14 +28,17 @@ function groupItemsEl(group, entries, singular, canDrop) {
 function _itemsCards(group, entries, singular, canDrop) {
   const grid = UI.make('div').class('list-view');
 
-  entries.forEach(entry => {
+  entries.forEach((entry, pos) => {
     // The plain wrapper div is deliberate: it becomes the grid item and
     // stretches, while the card inside sizes to its own content. Dropping it
     // would make .item-card the grid item and force equal row heights.
     grid.withChilds(UI.make('div').execute(el => {
       const card = makeItemCard(entry.item, () => navigateToItem(group.slug, entry.i),
                                 itemIsUnseen(group.slug, entry.item));
-      if (State.editMode) _wireCardDrag(card, group, entry, canDrop);
+      if (State.editMode) {
+        _wireCardDrag(card, group, entry, canDrop);
+        card.appendChild(_cardOrderControls(group, entries, pos, canDrop).getElement());
+      }
       el.appendChild(card);
     }));
   });
@@ -82,31 +85,79 @@ function _wireCardDrag(el, group, entry, canDrop) {
   el.draggable = true;
   el.classList.add('item-card--drag');
 
+  const accepts = () => _dragEntry && _dragAccepts(_dragEntry, entry, canDrop);
+
   el.addEventListener('dragstart', e => {
+    _dragEntry = entry;
     e.dataTransfer.setData('text/plain', String(entry.i));
     e.dataTransfer.effectAllowed = 'move';
-    _dragEntry = entry;
     el.classList.add('dragging');
   });
+
   el.addEventListener('dragend', () => { _dragEntry = null; el.classList.remove('dragging'); });
 
-  el.addEventListener('dragover', e => {
-    // Not calling preventDefault leaves the "no drop" cursor — the honest
-    // signal for a target that can't accept this item.
-    if (!_dragEntry || !_dragAccepts(_dragEntry, entry, canDrop)) return;
-    e.preventDefault();
-    el.classList.add('drag-over');
+  // Firefox only treats an element as a drop target if dragenter is prevented
+  // as well; Chrome is satisfied by dragover alone. Not calling preventDefault
+  // leaves the "no drop" cursor, which is the honest signal for a target that
+  // can't accept this item.
+  const over = e => { if (!accepts()) return; e.preventDefault(); el.classList.add('drag-over'); };
+  el.addEventListener('dragenter', over);
+  el.addEventListener('dragover', over);
+
+  // dragleave also fires when the pointer crosses into a CHILD of the card, so
+  // confirm we actually left before dropping the highlight.
+  el.addEventListener('dragleave', e => {
+    if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+    el.classList.remove('drag-over');
   });
-  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
 
   el.addEventListener('drop', e => {
     e.preventDefault();
+    e.stopPropagation();
     el.classList.remove('drag-over');
     const from = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    // drop fires before dragend; clearing here too means an abnormal end
+    // (Escape, dragged out of the window) can't leave a stale source behind.
+    _dragEntry = null;
     if (Number.isNaN(from)) return;
     _moveItem(group, from, entry.i);
-    renderCurrentView();
+    // Re-render only AFTER the browser has finished the drag. Doing it inline
+    // wiped #main-content — and with it the drag source — while the drag
+    // session was still live. Chrome doesn't fire dragend on a detached node,
+    // so the drag never terminated and the page stayed stuck holding the card
+    // until a reload.
+    setTimeout(renderCurrentView, 0);
   });
+}
+
+/* Drag is the nicer gesture, but it must not be the ONLY way to reorder:
+   HTML5 drag-and-drop does not fire on touch at all, and it cannot be
+   exercised by synthetic events, so it is exactly the kind of thing that
+   breaks silently. Every card also gets explicit move buttons — the same ↑/↓
+   affordance index-editor.js already uses for the group tree. */
+function _cardOrderControls(group, entries, pos, canDrop) {
+  // The neighbour in DISPLAY order that will accept this card. For a graph
+  // group that skips past anything on another topological level, matching what
+  // a drag is allowed to do.
+  const neighbour = dir => {
+    for (let p = pos + dir; p >= 0 && p < entries.length; p += dir)
+      if (_dragAccepts(entries[pos], entries[p], canDrop)) return entries[p];
+    return null;
+  };
+  const btn = (glyph, title, target) => {
+    const b = UI.make('button').class('idx-btn').attrs({ title, type: 'button' }).text(glyph);
+    if (!target) b.attrs({ disabled: 'disabled' });
+    else b.on('click', e => {
+      e.stopPropagation();                 // the card itself opens on click
+      _moveItem(group, entries[pos].i, target.i);
+      renderCurrentView();
+    });
+    return b;
+  };
+  return UI.make('div').class('card-order').withChilds(
+    btn('↑', 'Move earlier', neighbour(-1)),
+    btn('↓', 'Move later',   neighbour(+1)),
+  );
 }
 
 // The entry being dragged. dragover can't read dataTransfer (browsers hide it
