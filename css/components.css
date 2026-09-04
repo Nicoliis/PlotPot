@@ -8,8 +8,7 @@
 .new-item-card { border: 2px dashed var(--primary) !important; background: rgba(99,102,241,0.05) !important; color: var(--primary); text-align: center; font-size: 15px; display: flex; align-items: center; justify-content: center; min-height: 80px; }
 .new-item-card:hover { background: rgba(99,102,241,0.12) !important; transform: none; box-shadow: none; }
 
-/* ── References ────────────────────────────────────────────────── */
-.ref-add-cont  { display: flex; flex-direction: column; gap: 8px; }
+/* ── Reference pills (the graph parent editor) + inline #ref# links ── */
 .ref-tags      { display: flex; flex-wrap: wrap; gap: 6px; min-height: 24px; }
 .ref-tag       { display: inline-flex; align-items: center; gap: 4px; background: #4338ca; color: white; padding: 3px 10px; border-radius: 9999px; font-size: 12px; cursor: pointer; }
 .ref-tag:hover { background: #dc2626; }
@@ -51,3 +50,46 @@
 .graph-columns > div { flex: 1; width: 100% }
 .dag-view        { overflow-x: auto; background: #1e2937; border-radius: 12px; padding: 16px; min-height: 120px; }
 .dag-view svg    { display: block; }
+
+/* ── Expanded group view (js/content/group/items.js) ─────────────
+   The same items as .list-view, read rather than browsed. A card grid wants
+   the whole window; prose does not. 860px matches .detail-view, so an entry
+   reads at the same measure here as it does on its own page — the group header
+   and intro stay full-width, exactly as they do above a detail view. */
+.expanded-view  { max-width: 860px; margin-top: 16px; display: flex; flex-direction: column; }
+.expanded-item  { padding-bottom: 28px; }
+/* The divider is a sibling border, not an <hr>, so it can never dangle after
+   the last entry or above the edit-mode "New" button. */
+.expanded-item + .expanded-item { border-top: 1px solid var(--border); padding-top: 28px; }
+
+.expanded-head       { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.expanded-title-wrap { display: inline-flex; align-items: baseline; gap: 9px; min-width: 0; }
+.expanded-title      { font-size: 26px; font-weight: 700; margin: 0 0 10px; min-width: 0; }
+.expanded-title a       { color: inherit; text-decoration: none; }
+.expanded-title a:hover { color: var(--text-secondary); text-decoration: underline; }
+.expanded-actions    { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.expanded-meta       { margin-bottom: 12px; }
+
+/* Unseen marker, modelled on .menu-dot. Sits beside the title rather than
+   pinned to a corner like .card-new, which is absolute inside .item-card. */
+.expanded-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0;
+                box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+
+/* .preview-only reserves 120px for an editor pane and gives a leading heading
+   a top margin — neither is wanted for a section inside a longer page. */
+.expanded-item .preview-only { min-height: 0; }
+.expanded-item .preview-only > :first-child { margin-top: 0; }
+
+.expanded-textarea { width: 100%; min-height: 80px; resize: vertical; overflow: hidden;
+                     background: #1e2937; border: 1px solid #475569; border-radius: 8px;
+                     color: var(--text); padding: 12px 14px; font-size: 14px; line-height: 1.6;
+                     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.expanded-textarea:focus { outline: none; border-color: var(--primary); }
+.expanded-empty { color: var(--text-muted); font-style: italic; padding: 4px 0; }
+.expanded-new   { align-self: flex-start; margin-top: 4px; }
+
+/* Drag-to-reorder, edit mode only (js/content/group/items.js) */
+.item-card--drag           { cursor: grab; }
+.item-card--drag.dragging  { opacity: 0.4; cursor: grabbing; }
+.item-card--drag.drag-over { outline: 2px dashed var(--primary); outline-offset: 2px; }
+.item-card--drag.drag-over:hover { transform: none; }   /* the hover lift fights the outline */

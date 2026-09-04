@@ -3,11 +3,10 @@ function renderDetailView() {
   const group  = getGroup(groupSlug);
   const isNew  = itemIndex === null;
   const item   = isNew
-    ? { name: '', references: [], content: group.itemTemplate || '', parents: [], date: '' }
+    ? { name: '', content: group.itemTemplate || '', parents: [], date: '' }
     : group.items[itemIndex];
 
   _detailMd      = item.content || '';
-  _detailRefs    = null;
   _detailParents = null;
 
   const content = UI.get('main-content');
@@ -36,12 +35,6 @@ function renderDetailView() {
       UI.make('input').class('detail-name-input').id('detail-name')
         .value(item.name).attrs({ placeholder: 'Item name…' })
     );
-    _detailRefs = makeRefEditor(item.references);
-    wrap.withChilds(
-      UI.make('div').class('field-group').withChilds(
-        UI.make('label').text('References')
-      ).execute(el => el.appendChild(_detailRefs.element))
-    );
     if (group.type === 'graph') {
       _detailParents = makeParentEditor(group, itemIndex, item.parents);
       wrap.withChilds(
@@ -53,11 +46,6 @@ function renderDetailView() {
   } else {
     // ── view fields ───────────────────────────────────────────────
     wrap.withChilds(UI.make('h1').class('detail-title').text(item.name));
-    if (item.references?.length) {
-      const tags = UI.make('div').class('ref-tags').style({ marginBottom: '16px' });
-      item.references.forEach(r => tags.withChilds(UI.make('span').class('ref-tag').text(refDisplay(r))));
-      wrap.withChilds(tags);
-    }
     if (group.type === 'graph' && item.parents?.length)
       wrap.withChilds(UI.make('p').class('item-meta').style({ marginBottom: '16px' }).text('Parents: ' + item.parents.join(', ')));
   }

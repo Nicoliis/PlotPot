@@ -36,14 +36,33 @@ function _seenStoreKey() { return 'wb:seen:' + (window.Auth?.getUser()?.id || ''
 function _loadSeen() { try { return JSON.parse(localStorage.getItem(_seenStoreKey()) || '{}'); } catch { return {}; } }
 function _saveSeen(m) { try { localStorage.setItem(_seenStoreKey(), JSON.stringify(m)); } catch (e) { console.error(e); } }
 
+let _seenTimer = null, _seenDirty = false;
+
 function markElementSeen(worldId, key) {
   if (!worldId || !key) return;
   const m = _loadSeen();
   (m[worldId] = m[worldId] || {})[key] = nowISO();
   _saveSeen(m);
-  // Mirror to the cloud so the "visited" state follows the user across devices.
-  // Fire-and-forget: a blocked/failed write degrades to today's local-only behaviour.
-  window.Cloud?.saveSeen?.(worldId, m[worldId]).catch?.(e => console.error('saveSeen', e));
+  // The cloud mirror is a whole-map upsert, so coalesce bursts: the expanded
+  // group view clears a dot per entry as you read down it, which would
+  // otherwise be one identical-shaped Supabase write each. localStorage above
+  // is synchronous, so nothing is ever lost locally while we wait.
+  _seenDirty = true;
+  clearTimeout(_seenTimer);
+  _seenTimer = setTimeout(() => flushSeen(worldId), 1500);
+}
+
+// Push the pending cloud mirror now. Called before every navigation, so a
+// half-read group is never left un-synced.
+// Fire-and-forget: a blocked/failed write degrades to local-only behaviour.
+function flushSeen(worldId) {
+  clearTimeout(_seenTimer);
+  _seenTimer = null;
+  if (!_seenDirty) return;
+  _seenDirty = false;
+  const wid = worldId || State.currentWorld?.id;
+  const world = wid && _loadSeen()[wid];
+  if (world) window.Cloud?.saveSeen?.(wid, world).catch?.(e => console.error('saveSeen', e));
 }
 
 // Pull the cloud seen-map for a world and merge it into the local cache, keeping
@@ -130,4 +149,5 @@ function currentElementKey() {
 function leaveCurrentElement() {
   const k = currentElementKey();
   if (k && State.currentWorld) markElementSeen(State.currentWorld.id, k);
+  flushSeen();   // …plus any dots cleared while reading, which set no current key
 }

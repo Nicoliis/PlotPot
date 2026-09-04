@@ -176,6 +176,14 @@ const Url = (() => {
     return window.location.origin + window.location.pathname + build(current());
   }
 
+  // Query-string link to ONE card in a group, for anywhere that renders an
+  // item's title as a real anchor (the expanded group view). Reuses
+  // _cardParam() so the id-or-name-slug rule can't drift out of sync.
+  function itemLink(groupSlug, item) {
+    if (!State.currentWorld) return '';
+    return build({ site: 'world', id: State.currentWorld.id, g: groupSlug, card: _cardParam(item) });
+  }
+
   function _toast(text) {
     let el = document.getElementById('url-toast');
     if (!el) {
@@ -201,7 +209,7 @@ const Url = (() => {
     }
   }
 
-  return { read, build, current, sync, apply, start, link, copy };
+  return { read, build, current, sync, apply, start, link, itemLink, copy };
 })();
 
 window.Url = Url;

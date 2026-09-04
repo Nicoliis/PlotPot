@@ -12,8 +12,11 @@ JavaScript served as static files. Supabase provides auth and storage.
 - **Worlds** — each world is a set of groups (Characters, Places, …), each group a
   set of items with Markdown content.
 - **Views** — gallery, list, DAG, force graph, and long-form text per group.
-- **Cross-references** — link items to each other and to parents; the graph and
-  DAG views are built from those links.
+- **Cards or Expanded** — every list/graph group reads either as a grid of
+  summary cards or as each item rendered in full, one after another. The
+  reader picks per group; the choice is remembered on their device.
+- **Cross-references** — `#display:key#` anywhere in Markdown links to another
+  item or group; graph items also name parents, and the DAG is built from those.
 - **Social** — public worlds, profiles, following worlds and people, likes, tag
   suggestions, and a notification inbox.
 - **New-content tracking** — per-element "seen" state synced across devices.
@@ -101,6 +104,43 @@ Private worlds stay private — a link to one is only a *route*. Row-Level
 Security still decides whether the world loads, so a stranger following the link
 gets "World not found or not accessible" and lands on the gallery.
 
+## Reading and ordering a group
+
+A list or graph group has a **Cards / Expanded** toggle in its header. Cards is
+the default grid of summaries; Expanded renders every item in full, one after
+another, separated by a rule, at the same 860px measure a card gets on its own
+page. Each heading is a real link to that card, so deep links and Copy link
+keep working.
+
+The choice is the **reader's**, not the author's: it lives in `localStorage`
+(`pp:view-mode`, keyed world → group) and never reaches Supabase, so it works
+signed out and a shared link opens in the recipient's own preferred mode. Only
+non-default values are stored, which keeps the default itself changeable later.
+
+**The "new" dot.** In Expanded an unseen item shows a dot beside its title
+rather than the card grid's "new" pill. It clears when you actually read that
+entry — mouse-enter on a pointer device, or a second on screen on a touch one
+(`matchMedia('(hover: hover)')` picks the path, so a hybrid laptop still gets
+hover). The cloud mirror is debounced, so reading down a long group costs one
+Supabase write, not one per item.
+
+**Order.** In edit mode, cards are drag-sortable, and both layouts read the
+same order — there is no separate `order` field, `group.items` array order *is*
+the card order, which XML export already round-trips. Reordering is safe for
+permalinks and seen state because both key off `item.id`, not position. For a
+graph group the topological sort still wins: dragging reorders beats *within* a
+level (and their stacking in the DAG), and a cross-level drop is refused with
+the "no drop" cursor rather than silently doing nothing.
+
+Two known gaps: HTML5 drag-and-drop doesn't fire on touch, so reordering needs
+a pointer; and a `#ref#` pointing at an entry already on screen still navigates
+to its own page instead of scrolling to it.
+
+**Editing inline.** In Expanded + edit mode each body becomes a plain
+auto-growing textarea with a Save that appears once it is dirty. Save writes
+only that item's `content` and `updatedAt`; names, parents and deletion stay on
+the card's own page, one click away via **Edit**.
+
 ## Deploying
 
 Push to GitHub and enable **Pages** on the branch root — there is nothing to
@@ -133,6 +173,7 @@ js/core/                 no screen position — model, services, utilities
   cloud.js               Supabase data layer (profiles, worlds, follows, likes, …)
   data.js                world/group/item model helpers
   seen.js                per-element "seen" tracking
+  prefs.js               viewer-side display prefs (Cards / Expanded per group)
   icons.js  markdown.js  xml.js
 
 js/shell/                the persistent frame around the content area
@@ -155,11 +196,12 @@ js/content/              whatever fills #main-content
   gallery.js  profile.js  home.js  world-settings.js  new-group.js
   group/                 one file per group type, plus shared chrome
     list.js  graph.js  dag.js  text.js  menu.js  settings.js  header.js
+    items.js             a group's items as cards or expanded, + drag reorder
   detail/
     detail.js  detail-actions.js
 
 js/widgets/              reusable pieces that appear inside content views
-  md-panel.js  item-card.js  ref-editor.js  parent-editor.js  follow.js
+  md-panel.js  item-card.js  parent-editor.js  follow.js
 
 css/                     base, layout, components, social
 shared/                  Supabase config, auth wrapper, login gate
