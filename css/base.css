@@ -1,0 +1,33 @@
+:root {
+  --primary: #6366f1;
+  --bg: #0f0f17;
+  --surface: #1a1a2e;
+  --border: #334155;
+  --text: #e0e0ff;
+  --text-muted: #64748b;
+  --text-secondary: #a5b4fc;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+
+/* ── Global scrollbars ───────────────────────────────────────────
+   Applied to every scrollable element, not just one panel. Firefox /
+   standard via scrollbar-width|color on * and html; Chromium / Safari
+   via the ::-webkit-scrollbar pseudo-elements on *. */
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent; }
+html { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent; }
+
+*::-webkit-scrollbar        { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track  { background: transparent; }
+*::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.16); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.28); background-clip: padding-box; }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+.btn-primary  { background: var(--primary); color: white; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.btn-secondary { background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.btn-danger   { background: #dc2626; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.btn-close    { background: none; border: none; color: #94a3b8; font-size: 28px; cursor: pointer; line-height: 1; padding: 0 4px; }
+
+.field-group { margin-bottom: 16px; }
+.field-group label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-secondary); }
+.field-input  { width: 100%; padding: 10px 14px; background: #1e2937; border: 1px solid #475569; border-radius: 8px; color: white; font-size: 15px; }

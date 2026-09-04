@@ -1,0 +1,53 @@
+/* ── Cards ─────────────────────────────────────────────────────── */
+.list-view  { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 16px; }
+.item-card  { background: var(--surface); border-radius: 12px; padding: 20px; cursor: pointer; border: 1px solid var(--border); transition: transform 0.15s, box-shadow 0.15s; }
+.item-card:hover { transform: translateY(-3px); box-shadow: 0 12px 24px rgba(0,0,0,0.4); }
+.item-name    { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+.item-preview { font-size: 13px; color: #94a3b8; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.item-meta    { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+.new-item-card { border: 2px dashed var(--primary) !important; background: rgba(99,102,241,0.05) !important; color: var(--primary); text-align: center; font-size: 15px; display: flex; align-items: center; justify-content: center; min-height: 80px; }
+.new-item-card:hover { background: rgba(99,102,241,0.12) !important; transform: none; box-shadow: none; }
+
+/* ── References ────────────────────────────────────────────────── */
+.ref-add-cont  { display: flex; flex-direction: column; gap: 8px; }
+.ref-tags      { display: flex; flex-wrap: wrap; gap: 6px; min-height: 24px; }
+.ref-tag       { display: inline-flex; align-items: center; gap: 4px; background: #4338ca; color: white; padding: 3px 10px; border-radius: 9999px; font-size: 12px; cursor: pointer; }
+.ref-tag:hover { background: #dc2626; }
+.ref-add-row   { display: flex; gap: 8px; }
+.ref-input     { flex: 1; padding: 7px 12px; background: #1e2937; border: 1px solid #475569; border-radius: 8px; color: white; font-size: 13px; }
+.ref-link      { color: var(--text-secondary); text-decoration: underline; }
+
+/* ── Detail view ───────────────────────────────────────────────── */
+.detail-view  { max-width: 860px; display: flex; flex-direction: column; gap: 0; }
+.detail-bar   { display: flex; justify-content: space-between; align-items: center; }
+.detail-actions { display: flex; gap: 10px; }
+.detail-title { font-size: 30px; font-weight: 700; margin-bottom: 16px; }
+
+.detail-name-input {
+  width: 100%; font-size: 26px; font-weight: 700;
+  background: transparent; border: none; border-bottom: 2px solid var(--border);
+  color: var(--text); padding: 6px 0; display: block;
+}
+.detail-name-input:focus { outline: none; border-bottom-color: var(--primary); }
+
+/* ── Markdown textarea / preview ───────────────────────────────── */
+.md-textarea  { width: 100%; min-height: 250px; background: #1e2937; color: #e0e7ff; border: 1px solid #475569; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 13px; resize: vertical; margin-top: 4px; }
+.preview-only { min-height: 120px; line-height: 1.7; }
+.preview-only h1,.preview-only h2,.preview-only h3 { color: #c7d2fe; margin: 1em 0 0.4em; }
+.preview-only p   { margin-bottom: 0.75em; }
+.preview-only code { background: #1e2937; padding: 2px 6px; border-radius: 4px; font-size: 0.88em; }
+.preview-only blockquote { border-left: 3px solid var(--primary); padding-left: 12px; color: var(--text-secondary); margin: 8px 0; }
+.preview-only ul,.preview-only ol { margin: 0.4em 0 0.4em 1.4em; }
+.preview-only a { color: var(--text-secondary); }
+
+/* ── Parent beat picker ────────────────────────────────────────── */
+.parent-search-wrap { position: relative; flex: 1; }
+.parent-dropdown    { display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 100; background: #1e2937; border: 1px solid #475569; border-radius: 8px; max-height: 180px; overflow-y: auto; }
+.parent-option      { padding: 8px 12px; cursor: pointer; font-size: 13px; color: #e0e7ff; }
+.parent-option:hover { background: #2d3f55; }
+
+/* ── Graph / DAG ───────────────────────────────────────────────── */
+.graph-columns   { display: flex; flex-direction: column; gap: 24px; margin-top: 16px; align-items: flex-start; }
+.graph-columns > div { flex: 1; width: 100% }
+.dag-view        { overflow-x: auto; background: #1e2937; border-radius: 12px; padding: 16px; min-height: 120px; }
+.dag-view svg    { display: block; }
