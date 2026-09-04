@@ -84,6 +84,21 @@
 .preview-only ul,.preview-only ol { margin: 0.4em 0 0.4em 1.4em; }
 .preview-only a { color: var(--text-secondary); }
 
+/* Rendered content is authored elsewhere and has no idea how wide the column
+   is. There was no img rule anywhere, so an image drew at its intrinsic size
+   and pushed out past the text — past the card separator too, in the expanded
+   view. height:auto is what keeps the aspect ratio once width is capped;
+   capping width alone against an intrinsic height attribute squashes it.
+   No display change, so an inline image in a sentence still behaves. */
+.preview-only img { max-width: 100%; height: auto; }
+
+/* The same defect with different content: a long code line or a wide table is
+   also wider than the column. Scroll them inside their own box rather than let
+   them shove the page sideways. (Tables need display:block to become a scroll
+   container at all — a table box ignores overflow.) */
+.preview-only pre { overflow-x: auto; }
+.preview-only table { display: block; width: max-content; max-width: 100%; overflow-x: auto; }
+
 /* ── Parent beat picker ────────────────────────────────────────── */
 .parent-search-wrap { position: relative; flex: 1; }
 .parent-dropdown    { display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 100; background: #1e2937; border: 1px solid #475569; border-radius: 8px; max-height: 180px; overflow-y: auto; }
