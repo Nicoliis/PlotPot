@@ -8,7 +8,13 @@
   --text-secondary: #a5b4fc;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+/* height twice on purpose: 100vh is the viewport with the phone browser's
+   toolbars HIDDEN, so an app shell sized to it puts its own bottom edge behind
+   them — the sidebar's New Group button and the last line of any page became
+   unreachable. 100dvh tracks the toolbars as they retract and reappear. The vh
+   line stays as the fallback for browsers without dvh. */
+body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text);
+       height: 100vh; height: 100dvh; display: flex; overflow: hidden; }
 
 /* ── Global scrollbars ───────────────────────────────────────────
    Applied to every scrollable element, not just one panel. Firefox /
