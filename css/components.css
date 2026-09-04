@@ -136,7 +136,13 @@
    character off per collapse. Nothing else in this codebase sets white-space
    on a prose container. Block styling comes from .preview-only, which the root
    also carries — so a block looks the same raw as it does rendered. */
-.mdl-root  { white-space: pre-wrap; overflow-wrap: break-word; outline: none; }
+/* pre-wrap belongs ONLY on the block showing raw source. Putting it on the
+   root made marked's trailing newline render as a real line break, so every
+   rendered block carried a phantom extra line — 27px that vanished the moment
+   the block activated, shunting the page and landing clicks in the wrong
+   block. Rendered HTML must use normal whitespace handling. */
+.mdl-root  { white-space: normal; overflow-wrap: break-word; outline: none; }
+.mdl-block[data-mdl-active] { white-space: pre-wrap; }
 .mdl-block { position: relative; }
 /* A caret needs a line box; an empty element has no height. A ::after doesn't
    land in textContent, so the model never sees it. */
@@ -145,12 +151,22 @@
 /* The block being edited: a left tick rather than a background tint, which
    would fight the selection highlight. */
 .mdl-block[data-mdl-active] { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
-.mdl-block[data-mdl-active] > * { margin-top: 0; margin-bottom: 0; }
+/* Nothing here may change the block's box: activating must not move the page.
+   Zeroing the active block's margins cost it 27px of height and shunted
+   everything below it up by 28 — enough that a click landed the caret in the
+   next block, where typing edited rendered HTML that was never committed. */
 .mdl-block[data-mdl-block="list"]  { padding-left: 1.4em; }
 .mdl-block[data-mdl-block="hr"]    { color: var(--text-muted); }
 .mdl-block > pre { white-space: pre-wrap; background: #1e2937; border-radius: 6px; padding: 8px 10px; }
-.mdl-block > :first-child { margin-top: 0; }
-.mdl-block > :last-child  { margin-bottom: 0; }
+
+/* Spacing lives on the BLOCK, never on its child. The child element differs
+   between states — a list renders as <ul> but is edited as a <div> — so child
+   margins would change on activation and move the page. data-mdl-block is the
+   same in both states, so keying the rhythm off it is shift-free by
+   construction, which is the property that keeps clicks landing where aimed. */
+.mdl-block > * { margin-top: 0; margin-bottom: 0; }
+.mdl-block + .mdl-block { margin-top: 0.8em; }
+.mdl-block + .mdl-block[data-mdl-block="heading"] { margin-top: 1.15em; }
 .mdl-root a { cursor: text; }        /* refs are inert in here */
 .mdl-root:empty::before,
 .mdl-root > .mdl-block:only-child > :empty::before {

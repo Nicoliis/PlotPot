@@ -136,6 +136,24 @@ function _mdlSetOffsetIn(el, off) {
   _mdlPlace(el, el.childNodes.length);   // empty block: caret in the element
 }
 
+// Offset in the RENDERED text of a block -> offset in its source. Corrects for
+// the block markers the rendered version hides ('## ', '> ', '- ', '1. ').
+// Inline marks are not corrected, so a click inside **bold** can be a couple of
+// characters out — unavoidable without an offset map, and invisible in practice
+// because activating the block reveals every marker and reflows the line.
+function _mdlSrcFromViz(text, viz) {
+  const lines = text.split('\n');
+  let vi = 0, si = 0;
+  for (const line of lines) {
+    const pre = _mdlMarkerLen(line);
+    const body = line.length - pre;
+    if (viz <= vi + body) return si + pre + (viz - vi);
+    vi += body + 1;                 // the newline is one visible char either way
+    si += line.length + 1;
+  }
+  return text.length;
+}
+
 // The standard API is caretPositionFromPoint; caretRangeFromPoint is the older
 // WebKit/Blink spelling. This is the only browser fork in the file.
 function _mdlCaretFromPoint(x, y) {
@@ -161,6 +179,40 @@ function _mdlBlockElOf(inst, node) {
     n = n.parentNode;
   }
   return null;
+}
+
+// Never let an edit run with the caret on the root instead of inside a block:
+// the typed text would become a direct child of the root, where nothing commits
+// it, and it would vanish at the next render — silently losing the user's
+// words. Snap the caret into a real block first.
+function _mdlEnsureInBlock(inst) {
+  const s = window.getSelection();
+  if (!s || !s.rangeCount) return;
+  const r = s.getRangeAt(0);
+  if (!inst.root.contains(r.startContainer)) return;
+  if (_mdlBlockElOf(inst, r.startContainer)) return;
+  const i = Math.max(0, Math.min(inst.blocks.length - 1, r.startOffset - 1));
+  _mdlActivate(inst, i);
+  _mdlSetOffsetIn(inst.blocks[i].el, inst.blocks[i].text.length);
+  _mdlReadSel(inst);
+}
+
+// Belt and braces for anything that slips past that guard: fold a stray node
+// under the root into a real block rather than dropping it on the floor.
+function _mdlHealRoot(inst) {
+  const strays = [...inst.root.childNodes].filter(n => !(n.nodeType === 1 && n.classList?.contains('mdl-block')));
+  if (!strays.length) return false;
+  const i = inst.active >= 0 ? inst.active : 0;
+  const add = strays.map(n => n.textContent || '').join('');
+  strays.forEach(n => n.remove());
+  const b = inst.blocks[i];
+  if (b && add) {
+    b.text += add;
+    if (i === inst.active) _mdlMountActive(inst, b); else _mdlRenderInactive(inst, b);
+    _mdlSetOffsetIn(b.el, b.text.length);
+  }
+  inst.md = _mdlJoin(inst);
+  return true;
 }
 
 // Read the live selection back into inst.sel as absolute source offsets. Cached
@@ -192,7 +244,9 @@ function _mdlReadSel(inst) {
 // renderMarkdown (not marked.parser on a token) keeps this correct even when
 // the block's text has just changed type.
 function _mdlRenderInactive(inst, b) {
-  b.el.innerHTML = renderMarkdown(_mdlText(b));
+  // trim(): marked ends its output with a newline, which would otherwise sit in
+  // the block as a stray text node.
+  b.el.innerHTML = renderMarkdown(_mdlText(b)).trim();
   b.el.removeAttribute('data-mdl-active');
   const k = _mdlClassify(_mdlText(b));
   b.el.dataset.mdlBlock = k.block;
@@ -448,6 +502,8 @@ function makeLiveEditor(content, onChange, opts) {
   /* ── input: the hot path. Commit, then restyle only if the type changed. ── */
   root.addEventListener('input', () => {
     if (inst.composing) return;
+    // Text that escaped into the root would never be committed — absorb it.
+    if (_mdlHealRoot(inst)) { _mdlReadSel(inst); _mdlTouch(inst); inst.fire(); return; }
     if (inst.active === -1) { _mdlReadSel(inst); }
     const b = inst.blocks[inst.active];
     if (!b) { _mdlReadSel(inst); return; }
@@ -480,6 +536,7 @@ function makeLiveEditor(content, onChange, opts) {
   /* ── beforeinput: intercept structural intent only ── */
   root.addEventListener('beforeinput', e => {
     if (inst.composing) return;
+    _mdlEnsureInBlock(inst);      // before anything is typed, not after
     const t = e.inputType;
     if (t.startsWith('insertComposition') || t === 'insertReplacementText') return;
 
@@ -586,13 +643,24 @@ function makeLiveEditor(content, onChange, opts) {
     if (!el) return;
     const i = [...root.children].indexOf(el);
     if (i === -1 || i === inst.active) return;
-    const { clientX: x, clientY: y } = e;
+    // Measure the click against the RENDERED block, BEFORE activation changes
+    // the layout. Probing afterwards is what put the caret in a neighbouring
+    // block: activating shifts the text, so the same coordinates no longer
+    // point where the user aimed, and typing then edited rendered HTML that
+    // never got committed. Mapping the offset instead is layout-independent.
+    const hit = _mdlCaretFromPoint(e.clientX, e.clientY);
+    const box = el.getBoundingClientRect();
+    const viz = hit && el.contains(hit.node)
+      ? _mdlOffsetIn(el, hit.node, hit.offset)
+      // Clicked the block's padding rather than its text: nearest end.
+      : (e.clientY > box.top + box.height / 2 ? Infinity : 0);
+    const off = viz === Infinity ? inst.blocks[i].text.length
+                                 : _mdlSrcFromViz(inst.blocks[i].text, viz);
+
     e.preventDefault();          // we place the caret ourselves, not the browser
     root.focus();                // BEFORE placing it: focusing can collapse a
     _mdlActivate(inst, i);       // selection that was set first
-    const hit = _mdlCaretFromPoint(x, y);
-    if (hit && root.contains(hit.node)) _mdlPlace(hit.node, hit.offset);
-    else _mdlSetOffsetIn(inst.blocks[i].el, _mdlText(inst.blocks[i]).length);
+    _mdlSetOffsetIn(inst.blocks[i].el, off);
     _mdlReadSel(inst);
   });
 
