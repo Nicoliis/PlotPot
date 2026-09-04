@@ -97,10 +97,41 @@
    reads at the same measure here as it does on its own page — the group header
    and intro stay full-width, exactly as they do above a detail view. */
 .expanded-view  { max-width: 860px; margin-top: 16px; display: flex; flex-direction: column; }
-.expanded-item  { padding-bottom: 28px; }
-/* The divider is a sibling border, not an <hr>, so it can never dangle after
-   the last entry or above the edit-mode "New" button. */
-.expanded-item + .expanded-item { border-top: 1px solid var(--border); padding-top: 28px; }
+/* Each entry sits on a slab that fades out at the top and bottom, so the
+   boundary between two cards outweighs anything inside one. It has to: an h1's
+   2px accent rule was otherwise the strongest line on the page, which made a
+   heading *within* a card louder than the break *between* cards — the
+   hierarchy exactly backwards. The slab does most of the work, the rule below
+   confirms it, and the extra air separates them. */
+.expanded-item {
+  position: relative;
+  padding: 30px 0 34px;
+  background: linear-gradient(180deg,
+    transparent 0,
+    color-mix(in srgb, var(--accent) 11%, transparent) 16%,
+    color-mix(in srgb, var(--accent) 11%, transparent) 84%,
+    transparent 100%);
+}
+.expanded-item:first-child { padding-top: 10px; }
+.expanded-item + .expanded-item { margin-top: 30px; }
+
+/* Sits in the gap on the LATER sibling — still not an <hr>, so it can never
+   dangle after the last entry or above the edit-mode "New" button.
+   3px and near-opaque on purpose: a heading's rule is 2px at 34% accent and
+   runs edge to edge, and fading the ends costs visual mass, so a 2px fading
+   line at 55% still lost to it. This has to out-weigh the loudest line inside
+   a card, or the break between cards reads as the smaller event. The glow adds
+   presence without adding a fourth hard edge to the page. */
+.expanded-item + .expanded-item::before {
+  content: ''; position: absolute; left: 0; right: 0; top: -15px; height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg,
+    transparent 0,
+    color-mix(in srgb, var(--accent) 85%, transparent) 10%,
+    color-mix(in srgb, var(--accent) 85%, transparent) 90%,
+    transparent 100%);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 28%, transparent);
+}
 
 .expanded-head       { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .expanded-title-wrap { display: inline-flex; align-items: baseline; gap: 9px; min-width: 0; }
