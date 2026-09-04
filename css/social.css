@@ -334,6 +334,22 @@ textarea.field-input { resize: vertical; font-family: inherit; }
 }
 .md-panel[data-mode="code"]    .md-preview  { display: none; }
 .md-panel[data-mode="preview"] .md-textarea { display: none; }
+
+/* Live pane. The .md-body flex-basis rule above is a DIRECT-CHILD selector, so
+   a third pane needs its own or it collapses. The existing [data-mode] rules
+   are hide-rules keyed to the other two panes, so "live" matches none of them
+   and every pane has to be hidden explicitly. */
+.md-body > .md-live { flex: 1 1 100%; min-width: 0; }
+.md-live {
+  border: 1px solid #475569; border-top: none; border-radius: 0 0 8px 8px;
+  padding: 16px; min-height: 250px; max-height: 600px; overflow-y: auto; background: #161a25;
+}
+.md-live:focus { border-color: var(--primary); }
+.md-panel[data-mode="code"]    .md-live,
+.md-panel[data-mode="split"]   .md-live,
+.md-panel[data-mode="preview"] .md-live     { display: none; }
+.md-panel[data-mode="live"]    .md-textarea,
+.md-panel[data-mode="live"]    .md-preview  { display: none; }
 /* Split: square off the inner edges so the two panes read as one unit */
 .md-panel[data-mode="split"] .md-textarea { border-radius: 0 0 0 8px; }
 .md-panel[data-mode="split"] .md-preview  { border-radius: 0 0 8px 0; border-left: none; }

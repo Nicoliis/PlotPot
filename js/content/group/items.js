@@ -191,39 +191,24 @@ function _expandedEditor(group, item, head) {
   head.withChilds(UI.make('div').class('expanded-actions').withChilds(save, edit));
 
   let draft = item.content || '';
-  const ta = UI.make('textarea').class('expanded-textarea')
-    .value(draft)
-    .attrs({ placeholder: 'Write in Markdown…' })
-    .on('input', e => {
-      draft = e.target.value;
-      _autoGrow(e.target);
-      save.getElement().classList.toggle('hidden', draft === (item.content || ''));
-    });
+  // A contenteditable grows with its content, so the old _autoGrow dance and
+  // its post-append timer are both gone; the height floor lives in CSS now.
+  const live = makeLiveEditor(draft, v => {
+    draft = v;
+    save.getElement().classList.toggle('hidden', draft === (item.content || ''));
+  }, { className: 'expanded-live', placeholder: 'Write in Markdown…' });
 
   save.on('click', () => {
-    item.content   = draft;
+    // Through getMarkdown(), not `draft`: Save can be clicked while a block is
+    // active, and this commits that block's text first by construction.
+    item.content   = live.getMarkdown();
     item.updatedAt = nowISO();     // what drives every other reader's "new" dot
     saveData();
+    draft = item.content;
     save.getElement().classList.add('hidden');
   });
 
-  // Not in the document yet, so size it once the caller has appended it.
-  // A timer rather than requestAnimationFrame: rAF is paused entirely while
-  // the tab is hidden, which would leave a background render un-sized.
-  setTimeout(() => _autoGrow(ta.getElement()), 0);
-  return ta;
-}
-
-// Grow to fit the text: a fixed-height box inside a page of prose reads as a
-// form field, and nested scrollbars are miserable to write in.
-function _autoGrow(ta) {
-  ta.style.height = 'auto';       // let it shrink back before measuring
-  // scrollHeight covers content + padding but NOT the border, and base.css
-  // sets box-sizing: border-box globally — so the border has to be added back
-  // or the last line is clipped by exactly that much.
-  const cs = getComputedStyle(ta);
-  const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
-  ta.style.height = Math.max(ta.scrollHeight + border, 80) + 'px';
+  return live.element;
 }
 
 /* ── The unseen dot ────────────────────────────────────────────────
