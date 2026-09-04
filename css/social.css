@@ -268,10 +268,13 @@ textarea.field-input { resize: vertical; font-family: inherit; }
 @media (max-width: 720px) {
   /* World sidebar becomes an off-canvas drawer */
   body.mode-world .sidebar {
-    position: fixed; top: 0; left: 0; bottom: 0; height: 100vh;
+    position: fixed; top: 0; left: 0; bottom: 0; height: 100vh; height: 100dvh;
     width: min(82vw, 280px); transform: translateX(-100%);
     transition: transform 0.25s ease; z-index: 1000;
   }
+  /* Needs to out-specify the rule above (0,2,1), so it can't just reuse the
+     html.app-h .sidebar rule from layout.css. */
+  html.app-h body.mode-world .sidebar { height: var(--app-h); }
   /* The shadow belongs to the OPEN state only. A box-shadow paints from the
      element's transformed position, so on a closed drawer its 6px offset plus
      28px blur reached out of the viewport and back over the page — a dark band
@@ -294,7 +297,11 @@ textarea.field-input { resize: vertical; font-family: inherit; }
   .seg-btn { padding: 5px 9px; }
 
   /* Content + headings */
-  .content { padding: 16px 14px; }
+  /* A reading margin, not viewport compensation — keeping the shell out from
+     behind the toolbars is --app-h's job now. A last line sitting flush on its
+     container's edge is uncomfortable even when nothing covers it. env() is the
+     OS's own measurement, 0 unless the page opts into viewport-fit=cover. */
+  .content { padding: 16px 14px calc(20px + env(safe-area-inset-bottom, 0px)); }
   .home { gap: 18px; }
   .gallery-head h1 { font-size: 24px; }
   .world-header-title, .world-header .world-header-title { font-size: 26px; }
