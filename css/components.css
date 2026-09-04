@@ -101,50 +101,47 @@
    the whole window; prose does not. 860px matches .detail-view, so an entry
    reads at the same measure here as it does on its own page — the group header
    and intro stay full-width, exactly as they do above a detail view. */
-/* margin-top is small because every entry now carries its own top margin for
-   the rule that sits in it — including the first. */
 .expanded-view  { max-width: 860px; margin-top: 4px; display: flex; flex-direction: column; }
-/* The wash sits on the entry's HEAD only, strongest under the rule and gone by
-   the time the prose starts, so it reads as a masthead band rather than
-   tinting the whole column. background-size caps it; without that a
-   percentage-based gradient would stretch to the entry's full height and a
-   long entry would be washed end to end while a short one wasn't. */
-.expanded-item {
-  position: relative;
-  padding: 30px 0 34px;
-  margin-top: 30px;
-  background: linear-gradient(180deg,
-    color-mix(in srgb, var(--accent) 15%, transparent) 0,
-    color-mix(in srgb, var(--accent) 8%, transparent) 45%,
-    transparent 100%) no-repeat;
-  background-size: 100% 170px;
-}
-
-/* On EVERY entry, first included: the rule is what opens a card, so the first
-   card wants one as much as the rest. Still a pseudo-element on the entry
-   rather than an <hr>, so it cannot dangle after the last one or above the
-   edit-mode "New" button.
-   3px and near-opaque on purpose: a heading's rule is 2px at 34% accent and
-   runs edge to edge, and fading the ends costs visual mass, so a 2px fading
-   line at 55% still lost to it. This has to out-weigh the loudest line inside
-   a card, or the break between cards reads as the smaller event. The glow adds
-   presence without adding a fourth hard edge to the page. */
-.expanded-item::before {
-  content: ''; position: absolute; left: 0; right: 0; top: -15px; height: 3px;
-  border-radius: 3px;
-  background: linear-gradient(90deg,
-    transparent 0,
-    color-mix(in srgb, var(--accent) 85%, transparent) 10%,
-    color-mix(in srgb, var(--accent) 85%, transparent) 90%,
-    transparent 100%);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 28%, transparent);
-}
+/* No top padding: the rule now lives on the head, so all the space above an
+   entry is this margin and nothing else. */
+.expanded-item  { position: relative; padding: 0 0 26px; margin-top: 22px; }
 
 /* Grid, not flex with space-between: the title is centred in the ENTRY, not in
    whatever space the edit-mode buttons leave over. Matching 1fr tracks either
    side keep the middle column centred whether or not the buttons are there, so
-   the title doesn't shift when you toggle edit mode. */
-.expanded-head       { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; gap: 12px; }
+   the title doesn't shift when you toggle edit mode.
+   The rule and the glow are ONE device, both anchored here, so the title sits
+   inside the line's own colour instead of under a separate band: a radial pool
+   centred on the top edge, bleeding down from the line and fading out to the
+   left, right and below. Narrower than the line (58% of the width) so it pools
+   around the centred title and is gone well before the column edges. */
+.expanded-head {
+  position: relative;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; gap: 12px;
+  padding: 11px 0 4px;
+  background: radial-gradient(64% 135% at 50% 0%,
+    color-mix(in srgb, var(--accent) 42%, transparent) 0,
+    color-mix(in srgb, var(--accent) 16%, transparent) 38%,
+    transparent 72%);
+}
+/* On EVERY entry, first included: the rule is what opens a card, so the first
+   card wants one as much as the rest. A pseudo-element rather than an <hr>, so
+   it cannot dangle after the last entry or above the edit-mode "New" button.
+   3px near-opaque with narrow fades: a heading's rule is 2px at 34% accent and
+   runs edge to edge, and fading the ends costs visual mass, so a 2px line at
+   55% with wide fades lost to it outright. This has to out-weigh the loudest
+   line a card can hold, or the break between cards reads as the smaller
+   event. */
+.expanded-head::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg,
+    transparent 0,
+    color-mix(in srgb, var(--accent) 90%, transparent) 6%,
+    color-mix(in srgb, var(--accent) 90%, transparent) 94%,
+    transparent 100%);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 25%, transparent);
+}
 .expanded-title-wrap { grid-column: 2; display: inline-flex; align-items: baseline; gap: 9px; min-width: 0; }
 .expanded-title      { font-size: 26px; font-weight: 700; margin: 0 0 10px; min-width: 0; text-align: center; }
 .expanded-title a       { color: inherit; text-decoration: none; }
