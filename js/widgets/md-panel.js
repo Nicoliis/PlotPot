@@ -29,15 +29,22 @@ function makeMdPanel(content, onChange) {
   const fire = () => { onChange(ta.value); if (panel.dataset.mode !== 'code') renderPreview(); };
   ta.addEventListener('input', fire);
 
-  // Code / Split / Preview segmented toggle.
+  // Live pane (js/widgets/md-live.js). It does NOT own the text — the textarea
+  // does. The pane is seeded on entering Live and read back on leaving, so
+  // switching modes mid-edit is lossless and code/split/preview are untouched.
+  const live = makeLiveEditor(content, v => { ta.value = v; fire(); }, { className: 'md-live' });
+
+  // Code / Live / Split / Preview segmented toggle.
   const seg = UI.make('div').class('md-view-seg');
   const segBtns = [];
   const setMode = m => {
+    if (panel.dataset.mode === 'live' && m !== 'live') ta.value = live.getMarkdown();
     panel.dataset.mode = m;
     segBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+    if (m === 'live') { live.setMarkdown(ta.value); return; }
     if (m !== 'code') renderPreview();
   };
-  [['code', 'Code'], ['split', 'Split'], ['preview', 'Preview']].forEach(([m, label]) => {
+  [['code', 'Code'], ['live', 'Live'], ['split', 'Split'], ['preview', 'Preview']].forEach(([m, label]) => {
     const b = UI.make('button').class('md-view-btn').attrs({ type: 'button', 'data-mode': m, title: label + ' view' })
       .text(label).on('click', () => setMode(m)).getElement();
     segBtns.push(b);
@@ -49,6 +56,7 @@ function makeMdPanel(content, onChange) {
 
   const body = UI.make('div').class('md-body').getElement();
   body.appendChild(ta);
+  body.appendChild(live.element);
   body.appendChild(preview);
 
   panel.appendChild(toolbar);
