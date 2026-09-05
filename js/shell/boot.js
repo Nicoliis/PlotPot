@@ -13,6 +13,10 @@ function _boot() {
   if (_wired) return;       // loader may call this once DOM is already ready
   _wired = true;
   _wireViewport();          // publish the measured height before anything lays out
+
+  // ?debug=selftest — runs before auth, so it works signed out too. It only
+  // reads pure functions and restores any global it borrows.
+  if (window.SelfTest?.requested()) SelfTest.run();
   _wireTopbar();
   _wireSidebar();
 
