@@ -104,10 +104,13 @@ const Cloud = (() => {
     return created;
   }
 
-  // Persist the open world (content edits + metadata). Fire-and-forget; logs on failure.
+  // Persist the open world (content edits + metadata).
+  // Returns { ok, error } rather than swallowing the outcome: the UI used to
+  // hide the Save button and navigate away whether or not the write landed, so
+  // a rejected save was indistinguishable from a successful one.
   async function saveWorld(world) {
     const db = _db(); const uid = _uid();
-    if (!db || !uid || !world?.id) return;
+    if (!db || !uid || !world?.id) return { ok: false, error: new Error('Not signed in') };
     const { error } = await db.from('worlds').update({
       title: world.title,
       description: world.description,
@@ -119,6 +122,7 @@ const Cloud = (() => {
       updated_at: new Date().toISOString(),
     }).eq('id', world.id);
     if (error) console.error('saveWorld failed', error);
+    return { ok: !error, error };
   }
 
   async function deleteWorld(id) {

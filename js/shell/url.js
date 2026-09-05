@@ -184,7 +184,9 @@ const Url = (() => {
     return build({ site: 'world', id: State.currentWorld.id, g: groupSlug, card: _cardParam(item) });
   }
 
-  function _toast(text) {
+  // ms: a confirmation can flash past, but a failure has to survive being
+  // glanced at, so callers reporting one ask for longer.
+  function _toast(text, ms = 1800) {
     let el = document.getElementById('url-toast');
     if (!el) {
       el = document.createElement('div');
@@ -194,7 +196,7 @@ const Url = (() => {
     el.textContent = text;
     el.classList.add('show');
     clearTimeout(_toastTimer);
-    _toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+    _toastTimer = setTimeout(() => el.classList.remove('show'), ms);
   }
 
   // Copy the current screen's link. Falls back to a prompt where the clipboard
@@ -209,7 +211,9 @@ const Url = (() => {
     }
   }
 
-  return { read, build, current, sync, apply, start, link, itemLink, copy };
+  // toast is exported because it is the app's only non-blocking way to say
+  // something went wrong. saveData() needs exactly that.
+  return { read, build, current, sync, apply, start, link, itemLink, copy, toast: _toast };
 })();
 
 window.Url = Url;

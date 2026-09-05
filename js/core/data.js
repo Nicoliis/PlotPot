@@ -6,7 +6,45 @@
 function saveData() {
   if (!State.currentWorld) return;
   State.currentWorld.data = State.data;
-  Cloud.saveWorld(State.currentWorld).catch(e => console.error('Cloud save failed', e));
+  // A save that fails has to say so. Everything here is optimistic -- the Save
+  // button hides, the view navigates -- so silence reads as success, and the
+  // edit is then only in a closure that the next render throws away.
+  Cloud.saveWorld(State.currentWorld)
+    .then(res => {
+      if (res && res.ok) return;                            // it landed; nothing to warn about
+      window.Url?.toast?.('Save failed — your changes are still on screen but were NOT stored', 6000);
+    })
+    .catch(e => {
+      console.error('Cloud save failed', e);
+      window.Url?.toast?.('Save failed — your changes are still on screen but were NOT stored', 6000);
+    });
+}
+
+/* ── Unsaved-draft guard ──────────────────────────────────────────
+   Every editing surface keeps its draft in a closure and only commits it on an
+   explicit Save, so navigating away discarded the work without a word. A view
+   that has something to lose registers a predicate here; the router asks before
+   it throws that view away. */
+
+let _draftCheck = null;
+
+// Called by a view as it renders; null clears it (a view with nothing to lose).
+function registerDraft(isDirty) {
+  _draftCheck = typeof isDirty === 'function' ? isDirty : null;
+}
+
+function draftIsDirty() {
+  // A predicate reaching into a torn-down view must never be able to trap the
+  // user on the page, so a throw counts as clean.
+  try { return !!(_draftCheck && _draftCheck()); } catch { return false; }
+}
+
+// True when it is safe to leave. Only interrupts when there is something to lose.
+function confirmLeaveDraft() {
+  if (!draftIsDirty()) return true;
+  if (!confirm('You have unsaved changes. Leave without saving?')) return false;
+  _draftCheck = null;
+  return true;
 }
 
 // True when the signed-in user owns the open world (gates edit mode / writes).

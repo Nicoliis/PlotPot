@@ -179,6 +179,46 @@ const SelfTest = (() => {
     });
   });
 
+  /* ── Unsaved-draft guard ──────────────────────────────────── */
+
+  // registerDraft/draftIsDirty/confirmLeaveDraft are top-level bindings in
+  // js/core/data.js, which classic scripts share, so they are reachable here.
+  // Each case restores whatever guard was installed before it ran.
+  test('draft guard: null and false predicates are clean', () => {
+    const prev = _draftCheck;
+    try {
+      registerDraft(null);
+      ok(!draftIsDirty(), 'no predicate means nothing to lose');
+      registerDraft(() => false);
+      ok(!draftIsDirty(), 'a false predicate is clean');
+      ok(confirmLeaveDraft(), 'leaving a clean view must not prompt');
+    } finally { registerDraft(prev); }
+  });
+
+  test('draft guard: a throwing predicate can never trap the user', () => {
+    const prev = _draftCheck;
+    try {
+      registerDraft(() => { throw new Error('view was torn down'); });
+      ok(!draftIsDirty(), 'a throw must read as clean, not as dirty');
+      ok(confirmLeaveDraft(), 'and must not block navigation');
+    } finally { registerDraft(prev); }
+  });
+
+  test('draft guard: dirty respects the answer', () => {
+    const prev = _draftCheck, realConfirm = window.confirm;
+    try {
+      window.confirm = () => false;
+      registerDraft(() => true);
+      ok(!confirmLeaveDraft(), 'declining keeps you on the page');
+      ok(draftIsDirty(), 'and leaves the guard armed');
+
+      window.confirm = () => true;
+      registerDraft(() => true);
+      ok(confirmLeaveDraft(), 'accepting lets you leave');
+      ok(!draftIsDirty(), 'and disarms the guard so it asks only once');
+    } finally { window.confirm = realConfirm; registerDraft(prev); }
+  });
+
   /* ── timeAgo ──────────────────────────────────────────────── */
 
   test('timeAgo: buckets', () => {

@@ -3,8 +3,19 @@
    the address bar so any screen can be linked to. url.js mutes that while it
    is replaying a link, so this stays a plain one-liner everywhere. */
 
-function goGallery() {
+/* Leaving the current view. Refuses when it holds an unsaved draft the user
+   wants to keep; otherwise drops the guard and marks the element seen. Every
+   entry point below goes through this rather than calling leaveCurrentElement
+   directly, so there is one place that can say no. */
+function _leaveView() {
+  if (!confirmLeaveDraft()) return false;
+  registerDraft(null);
   leaveCurrentElement();
+  return true;
+}
+
+function goGallery() {
+  if (!_leaveView()) return;
   State.currentView = 'gallery';
   State.currentWorld = null;
   State.data = null;
@@ -16,7 +27,7 @@ function goGallery() {
 }
 
 function goProfile(userId) {
-  leaveCurrentElement();
+  if (!_leaveView()) return;
   State.currentView = 'profile';
   State.currentWorld = null;
   State.data = null;
@@ -29,7 +40,7 @@ function goProfile(userId) {
 }
 
 function goNewWorld() {
-  leaveCurrentElement();
+  if (!_leaveView()) return;
   State.currentView = 'new-world';
   State.currentWorld = null;
   State.data = null;
@@ -43,7 +54,7 @@ function goNewWorld() {
 // Open a world by id (always starts in view mode). Returns true on success —
 // url.js needs to know whether a shared ?site=world link actually resolved.
 async function openWorld(id) {
-  leaveCurrentElement();   // leaving whatever element was open in the previous world
+  if (!_leaveView()) return false;   // leaving whatever element was open in the previous world
   const content = UI.get('main-content');
   content.innerHTML = '<p style="color:var(--text-muted);padding:12px">Loading world…</p>';
 
@@ -70,7 +81,7 @@ async function openWorld(id) {
 
 function openWorldSettings() {
   if (!isOwner()) return;
-  leaveCurrentElement();
+  if (!_leaveView()) return;
   State.currentView = 'world-settings';
   State.currentItem = null;
   _chrome();
@@ -82,7 +93,7 @@ function openWorldSettings() {
 /* ── Within-world navigation ──────────────────────────────────── */
 
 function navigate(slug) {
-  leaveCurrentElement();
+  if (!_leaveView()) return;
   State.currentView = slug;
   State.currentItem = null;
   _chrome();
@@ -92,7 +103,7 @@ function navigate(slug) {
 }
 
 function navigateToItem(groupSlug, itemIndex) {
-  leaveCurrentElement();
+  if (!_leaveView()) return;
   State.currentView = groupSlug;
   State.currentItem = { groupSlug, itemIndex };
   _chrome();
@@ -108,7 +119,7 @@ function navigateToNewItem(groupSlug) {
 // Owner-only: open a group's settings, or the whole-index structure editor.
 function openGroupSettings(slug) {
   if (!isOwner()) return;
-  leaveCurrentElement();
+  if (!_leaveView()) return;
   State.settingsSlug = slug;
   State.currentView = 'group-settings';
   State.currentItem = null;
@@ -120,7 +131,7 @@ function openGroupSettings(slug) {
 
 function openIndexEditor() {
   if (!isOwner()) return;
-  leaveCurrentElement();
+  if (!_leaveView()) return;
   State.currentView = 'index-editor';
   State.currentItem = null;
   _chrome();
