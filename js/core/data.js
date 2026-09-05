@@ -12,7 +12,9 @@ function saveData() {
   Cloud.saveWorld(State.currentWorld)
     .then(res => {
       if (res && res.ok) return;                            // it landed; nothing to warn about
-      window.Url?.toast?.('Save failed — your changes are still on screen but were NOT stored', 6000);
+      window.Url?.toast?.(res && res.conflict
+        ? 'This world changed somewhere else. Reload before saving, or you will overwrite it.'
+        : 'Save failed — your changes are still on screen but were NOT stored', 6000);
     })
     .catch(e => {
       console.error('Cloud save failed', e);

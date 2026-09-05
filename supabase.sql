@@ -40,6 +40,14 @@ create table if not exists worlds (
 create index if not exists worlds_owner_idx  on worlds (owner_id);
 create index if not exists worlds_public_idx on worlds (is_public) where is_public;
 
+-- Optimistic concurrency. Every save is a whole-row write of the `data` blob,
+-- so without a guard two tabs (or a phone and a laptop) silently overwrite each
+-- other and the loser is never told. saveWorld() bumps this and requires the
+-- value it read, so the second writer is refused instead of winning.
+-- The client feature-detects it: worlds.rev being absent simply means the old
+-- last-write-wins behaviour, so running this is safe in either order.
+alter table worlds add column if not exists rev bigint not null default 0;
+
 alter table worlds enable row level security;
 
 drop policy if exists "public or own worlds readable" on worlds;
