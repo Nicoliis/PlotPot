@@ -7,6 +7,11 @@ function _wireSearch() {
     const term = e.target.value.toLowerCase().trim();
     if (!term) return;
     for (const g of State.data.groups) {
+      // A private group is not searchable by anyone who could not already open
+      // it. Without this, navigateToItem walks a non-owner straight into a
+      // group the owner hid — the sidebar and the router both gate on exactly
+      // this, search was the one path that didn't.
+      if (!isGroupVisible(g)) continue;
       const idx = (g.items || []).findIndex(i =>
         i.name.toLowerCase().includes(term) || (i.content || '').toLowerCase().includes(term)
       );

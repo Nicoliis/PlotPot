@@ -480,7 +480,8 @@ function makeLiveEditor(content, onChange, opts) {
     div.className = 'preview-only' + (o.className ? ' ' + o.className : '');
     div.innerHTML = renderMarkdown(content);
     bindRefLinks(div);
-    return { element: div, getMarkdown: () => _mdlNorm(content), setMarkdown() {}, focus() {} };
+    return { element: div, getMarkdown: () => _mdlNorm(content), setMarkdown() {},
+             getSelection: () => ({ a: 0, b: 0 }), applyMarkdown() {}, focus() {} };
   }
 
   const root = document.createElement('div');
@@ -679,6 +680,15 @@ function makeLiveEditor(content, onChange, opts) {
       _mdlBuild(inst);
       _mdlPush(inst);
     },
+    // The caret as absolute offsets into the SOURCE, which is the same
+    // coordinate space a textarea's selectionStart/End use. That correspondence
+    // is what lets md-panel's toolbar act on the pane the writer can actually
+    // see; inst.sel is already maintained in these units.
+    getSelection() { _mdlCommit(inst); return { ...inst.sel }; },
+    // The write half of the same contract: replace the document, place the
+    // caret, fire onChange. Unlike setMarkdown this keeps the undo stack, so a
+    // toolbar insertion is one more step the writer can take back.
+    applyMarkdown(md, caret) { _mdlApply(inst, md, caret); },
     focus() { root.focus(); },
   };
 }

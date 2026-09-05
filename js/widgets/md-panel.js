@@ -51,7 +51,23 @@ function makeMdPanel(content, onChange) {
     seg.getElement().appendChild(b);
   });
 
-  const toolbar = _mdToolbar(ta, fire).getElement();
+  // Every _md* helper reads and writes the TEXTAREA. In Live mode the textarea
+  // is not the visible surface and still holds whatever the text was when Live
+  // was entered, so a toolbar insertion landed on a stale value — and was then
+  // thrown away wholesale by setMode's `ta.value = live.getMarkdown()` on the
+  // way out. Pull the live pane's text and caret in first, run the action
+  // against them, then push the result back.
+  const runTool = fn => {
+    if (panel.dataset.mode !== 'live') { fn(); return; }
+    ta.value = live.getMarkdown();
+    const s = live.getSelection();
+    ta.setSelectionRange(s.a, s.b);
+    fn();                                 // helpers leave the caret where they put it
+    live.focus();                         // focus BEFORE applying: focusing later
+    live.applyMarkdown(ta.value, ta.selectionStart);   // collapses a set selection
+  };
+
+  const toolbar = _mdToolbar(ta, fire, runTool).getElement();
   toolbar.querySelector('.md-toolbar').appendChild(seg.getElement());   // sits right via margin-left:auto
 
   const body = UI.make('div').class('md-body').getElement();
@@ -129,10 +145,13 @@ function _mdRefItems() {
 
 /* ── Toolbar ── */
 
-function _mdToolbar(ta, fire) {
+function _mdToolbar(ta, fire, runTool) {
+  // Read-mode and older callers pass no runTool; then an action is just itself.
+  const run = runTool || (fn => fn());
+
   const btn = (label, title, onClick, extraClass) =>
     UI.make('button').class('md-tool', extraClass || '').attrs({ type: 'button', title })
-      .text(label).on('click', e => { e.preventDefault(); onClick(); });
+      .text(label).on('click', e => { e.preventDefault(); run(onClick); });
 
   const sep = () => UI.make('span').class('md-sep');
 
@@ -149,11 +168,11 @@ function _mdToolbar(ta, fire) {
   function openRef() {
     pop.classList.remove('hidden');
     searchEl.value = '';
-    _fillRefPop(refPop, ta, fire, searchEl, closeRef);
+    _fillRefPop(refPop, ta, fire, searchEl, closeRef, run);
     searchEl.focus();                                  // focus the search on open
     setTimeout(() => document.addEventListener('click', onDocClick), 0); // close on outside click
   }
-  search.on('input', () => _fillRefPop(refPop, ta, fire, searchEl, closeRef));
+  search.on('input', () => _fillRefPop(refPop, ta, fire, searchEl, closeRef, run));
 
   const refBtn = UI.make('button').class('md-tool').attrs({ type: 'button', title: 'Insert a link to another entry' })
     .text('Reference').on('click', e => {
@@ -183,7 +202,7 @@ function _mdToolbar(ta, fire) {
   return UI.make('div').class('md-toolbar-wrap').withChilds(bar, refPop);
 }
 
-function _fillRefPop(refPop, ta, fire, searchEl, close) {
+function _fillRefPop(refPop, ta, fire, searchEl, close, run = fn => fn()) {
   const list = refPop.getElement().querySelector('.md-ref-list');
   const q = (searchEl.value || '').toLowerCase();
   const items = _mdRefItems().filter(it => it.name.toLowerCase().includes(q));
@@ -196,7 +215,7 @@ function _fillRefPop(refPop, ta, fire, searchEl, close) {
     list.appendChild(
       UI.make('div').class('md-ref-item')
         .withChilds(UI.make('span').text(it.name), UI.make('span').class('md-ref-group').text(it.group))
-        .on('click', () => { _mdInsertRef(ta, it.key, fire, it.name); close(); })
+        .on('click', () => { run(() => _mdInsertRef(ta, it.key, fire, it.name)); close(); })
         .getElement()
     );
   });
