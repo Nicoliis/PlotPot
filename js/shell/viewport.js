@@ -26,11 +26,26 @@
 
 function _appHeight() {
   const vv = window.visualViewport;
+  // No Visual Viewport API at all: innerHeight is the best there is.
+  if (!vv) return window.innerHeight;
+
   // Pinch-zoom shrinks visualViewport.height: that is a magnified view of the
   // same page, not a smaller screen, so measuring it would squash the shell
-  // while the user is zoomed in. Fall back to innerHeight in that case.
-  if (vv && Math.abs(vv.scale - 1) < 0.01 && vv.height > 0) return vv.height;
-  return window.innerHeight;
+  // while the user is zoomed in.
+  //
+  // What it must NOT do — and used to — is fall back to innerHeight here. On
+  // Chrome for Android innerHeight is the toolbar-HIDDEN height, the single
+  // number this file exists to avoid, so one pinch-zoom published a shell
+  // taller than the screen. Too tall is the one error this layout cannot
+  // recover from: the shell is overflow:hidden with the only scroller inside
+  // it, so the strip behind the toolbar is unreachable, not merely ugly — the
+  // end of a page could not be read at all. Zooming back to exactly 1 repaired
+  // it, which is why it looked intermittent.
+  //
+  // 0 makes _publishAppHeight bail, keeping the last good height. Declining to
+  // measure is always the safer error here.
+  if (Math.abs(vv.scale - 1) >= 0.01) return 0;
+  return vv.height > 0 ? vv.height : window.innerHeight;
 }
 
 function _publishAppHeight() {

@@ -12,7 +12,7 @@
 }
 /* Measured height (js/shell/viewport.js) — this is what keeps .new-group,
    the sidebar's last control, inside the visible area on a phone. */
-html.app-h .sidebar { height: var(--app-h); }
+html.app-h .sidebar { height: var(--app-h); height: min(var(--app-h), 100dvh); }
 .logo {
   display: flex; align-items: center; gap: 10px;
   padding: 20px 20px 18px; font-size: 17px; font-weight: 700;

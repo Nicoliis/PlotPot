@@ -16,7 +16,13 @@
    scope means the measured rule only applies once a real value exists. */
 body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text);
        height: 100vh; height: 100dvh; display: flex; overflow: hidden; }
-html.app-h body { height: var(--app-h); }
+/* min(), because a measurement can only be wrong in one direction that hurts.
+   Too short is cosmetic — a gap under the shell. Too tall (a stale value, a
+   toolbar that came back without firing an event) clips the page's last lines
+   somewhere nothing can scroll to. Clamping to the browser's own dvh caps the
+   worst case at "behaves like dvh", which is where this started. The bare
+   var() line stays first for anything without min() or dvh. */
+html.app-h body { height: var(--app-h); height: min(var(--app-h), 100dvh); }
 
 /* ── Global scrollbars ───────────────────────────────────────────
    Applied to every scrollable element, not just one panel. Firefox /
