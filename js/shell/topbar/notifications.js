@@ -35,8 +35,13 @@ function _notifRow(n) {
   if (n.type === 'tag_suggestion') {
     const tag = n.data?.tag || '';
     row.withChilds(
+      // Escaped. All three are user-supplied and arrive here as raw text: a
+      // display name and a world title are chosen by other people, and the tag
+      // comes off a notification row. _escHtml is declared in js/core/markdown.js,
+      // which the loader injects long before this file.
       UI.make('div').class('notif-text').innerHTML(
-        `<strong>${who}</strong> suggested the tag <span class="tag-chip">#${tag}</span> for <strong>${worldTitle}</strong>`
+        `<strong>${_escHtml(who)}</strong> suggested the tag ` +
+        `<span class="tag-chip">#${_escHtml(tag)}</span> for <strong>${_escHtml(worldTitle)}</strong>`
       ),
       UI.make('div').class('notif-actions').withChilds(
         UI.make('button').class('btn-primary', 'btn-xs').text('Add tag').on('click', async e => {

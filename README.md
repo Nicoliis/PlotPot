@@ -1,7 +1,7 @@
 # PlotPot
 
 A browser-based worldbuilding wiki. Keep lore, characters, places, factions and
-timelines for your writing projects — with public worlds, follows, likes and
+timelines for your writing projects - with public worlds, follows, likes and
 notifications on top.
 
 No build step, no bundler, no dependencies to install: it is plain HTML, CSS and
@@ -9,20 +9,22 @@ JavaScript served as static files. Supabase provides auth and storage.
 
 ## Features
 
-- **Worlds** — each world is a set of groups (Characters, Places, …), each group a
+- **Worlds** - each world is a set of groups (Characters, Places, ...), each group a
   set of items with Markdown content.
-- **Views** — gallery, list, DAG, force graph, and long-form text per group.
-- **Cards or Expanded** — every list/graph group reads either as a grid of
+- **Views** - gallery, list, DAG, force graph, and long-form text per group.
+- **Cards or Expanded** - every list/graph group reads either as a grid of
   summary cards or as each item rendered in full, one after another. The
   reader picks per group; the choice is remembered on their device.
-- **Cross-references** — `#display:key#` anywhere in Markdown links to another
+- **Cross-references** - `#display:key#` anywhere in Markdown links to another
   item or group; graph items also name parents, and the DAG is built from those.
-- **Social** — public worlds, profiles, following worlds and people, likes, tag
+- **Images** - sized in the Markdown itself, and resized by dragging the corner
+  in the Live editor.
+- **Social** - public worlds, profiles, following worlds and people, likes, tag
   suggestions, and a notification inbox.
-- **New-content tracking** — per-element "seen" state synced across devices.
-- **Shareable links** — every screen has a URL; **Copy link** in the ⋯ menu (and
+- **New-content tracking** - per-element "seen" state synced across devices.
+- **Shareable links** - every screen has a URL; **Copy link** in the ⋯ menu (and
   on a card) hands you a link straight to that world, group or card.
-- **Import / export** — XML round-trip, plus Markdown export.
+- **Import / export** - XML round-trip, plus Markdown export.
 
 ## Running it
 
@@ -33,26 +35,26 @@ python -m http.server 8000
 ```
 
 Then open <http://localhost:8000>. Opening `index.html` directly off the
-filesystem will not work — the Supabase OAuth redirect and the script loader
+filesystem will not work - the Supabase OAuth redirect and the script loader
 both need an `http(s)` origin.
 
 ## Setup
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor** and run [`supabase.sql`](supabase.sql). It is idempotent —
+2. Open **SQL Editor** and run [`supabase.sql`](supabase.sql). It is idempotent -
    safe to re-run after schema changes.
 3. Copy **Project Settings → API → Project URL** and the **anon/publishable key**
    into [`shared/config.js`](shared/config.js).
-4. *(Optional)* Enable social login — see below.
+4. *(Optional)* Enable social login - see below.
 
 ### Social login
 
 The gate offers **Continue with Google** and **Continue with GitHub**. Both are
-configured entirely in the Supabase dashboard — **no client ID or secret goes in
+configured entirely in the Supabase dashboard - **no client ID or secret goes in
 this repo**. The browser only names the provider (`Auth.signInWithProvider`);
 Supabase holds the credentials and performs the token exchange.
 
-**Google** — in [Google Cloud Console](https://console.cloud.google.com/apis/credentials),
+**Google** - in [Google Cloud Console](https://console.cloud.google.com/apis/credentials),
 create an *OAuth client ID* of type **Web application**:
 
 - *Authorised JavaScript origins*: your site origin, e.g. `https://<user>.github.io`
@@ -61,7 +63,7 @@ create an *OAuth client ID* of type **Web application**:
 Then paste the **Client ID** and **Client secret** into Supabase under
 **Authentication → Providers → Google**, and toggle it on.
 
-**GitHub** — create an OAuth app at GitHub → Settings → Developer settings →
+**GitHub** - create an OAuth app at GitHub → Settings → Developer settings →
 OAuth Apps with the same callback URL, then paste its Client ID and secret into
 **Authentication → Providers → GitHub**.
 
@@ -69,7 +71,7 @@ For either provider, the site origin must also be listed under **Authentication 
 URL Configuration → Redirect URLs**, or the sign-in will complete and then bounce
 to the wrong place.
 
-The key in `config.js` is the public anon key — it is meant to ship to the
+The key in `config.js` is the public anon key - it is meant to ship to the
 browser. Every table has Row-Level Security enabled, so what a signed-in user can
 read and write is enforced by Postgres, not by the client. The login gate in
 `shared/auth-gate.js` is UX only; it hides the UI, it does not protect data.
@@ -77,7 +79,7 @@ read and write is enforced by Postgres, not by the client. The login gate in
 ## URLs
 
 GitHub Pages serves one file and knows nothing about our screens, so there are
-no real paths to route on — `/characters/aria` would just 404. The route lives
+no real paths to route on - `/characters/aria` would just 404. The route lives
 in the query string instead, which any static host hands back untouched:
 
 | URL | Screen |
@@ -91,8 +93,8 @@ in the query string instead, which any static host hands back untouched:
 
 `js/shell/url.js` owns both directions: every navigation in `router.js` mirrors
 its state into the address bar, and Back/Forward (or a pasted link) replays a
-URL back into the app. A link the app can't honour — a deleted world, a renamed
-group, a private one you can't see — degrades to the nearest thing it can show
+URL back into the app. A link the app can't honour - a deleted world, a renamed
+group, a private one you can't see - degrades to the nearest thing it can show
 and the address bar is rewritten to match, so it never points at a screen you
 aren't on.
 
@@ -100,7 +102,7 @@ A shared link survives sign-in, including the OAuth round trip: the provider
 sends you back to a bare URL, so `Auth.signInWithProvider` parks the query in
 `sessionStorage` first and `Url.start()` picks it up.
 
-Private worlds stay private — a link to one is only a *route*. Row-Level
+Private worlds stay private - a link to one is only a *route*. Row-Level
 Security still decides whether the world loads, so a stranger following the link
 gets "World not found or not accessible" and lands on the gallery.
 
@@ -119,13 +121,13 @@ non-default values are stored, which keeps the default itself changeable later.
 
 **The "new" dot.** In Expanded an unseen item shows a dot beside its title
 rather than the card grid's "new" pill. It clears when you actually read that
-entry — mouse-enter on a pointer device, or a second on screen on a touch one
+entry - mouse-enter on a pointer device, or a second on screen on a touch one
 (`matchMedia('(hover: hover)')` picks the path, so a hybrid laptop still gets
 hover). The cloud mirror is debounced, so reading down a long group costs one
 Supabase write, not one per item.
 
 **Order.** In edit mode, cards are drag-sortable, and both layouts read the
-same order — there is no separate `order` field, `group.items` array order *is*
+same order - there is no separate `order` field, `group.items` array order *is*
 the card order, which XML export already round-trips. Reordering is safe for
 permalinks and seen state because both key off `item.id`, not position. For a
 graph group the topological sort still wins: dragging reorders beats *within* a
@@ -141,9 +143,42 @@ auto-growing textarea with a Save that appears once it is dirty. Save writes
 only that item's `content` and `updatedAt`; names, parents and deletion stay on
 the card's own page, one click away via **Edit**.
 
+## Images
+
+An image is plain Markdown - `![alt](url)` - and a width rides in the alt text:
+
+```markdown
+![The kingdom|420](https://example.com/map.png)
+```
+
+`|420` is a width in pixels; `|420x260` sets both. No suffix means what it has
+always meant: the image fits the column and no more. The size lives in the
+document, so it survives export, import and a reader's rendered page, and an
+editor that doesn't know us still shows the image - the size just reads as part
+of the alt text.
+
+The suffix is in the **alt** half rather than the URL half on purpose. The other
+common spelling, `![a](url =420x)`, does not parse in marked at all: it breaks
+the image outright and leaves the raw text on the page.
+
+**Resizing by hand.** In the Live editor, click an image and it becomes an
+object: a frame, a grip at the bottom-right corner to drag, and a bar with the
+width in pixels, three column-relative presets and **Auto** (which removes the
+size). The bar sits on the image because the overlay is absolutely positioned -
+anywhere outside the image box it would land on the next paragraph.
+
+Backspace or Delete removes the image, Escape deselects, and one drag is one
+Ctrl+Z: the source is rewritten once, on release, not on every pointer move.
+Only the one image's alt suffix changes, so a block holding several images -
+including several copies of the same one - is edited a character at a time.
+
+Resizing is a Live-editor gesture; the Code, Split and Preview panes are
+unchanged, and a reader sees the result but no handles. An `<img>` written as
+raw HTML has no `![...](...)` to write back to, so it renders and is left alone.
+
 ## Deploying
 
-Push to GitHub and enable **Pages** on the branch root — there is nothing to
+Push to GitHub and enable **Pages** on the branch root - there is nothing to
 build. Add the Pages URL to Supabase under **Authentication → URL Configuration →
 Redirect URLs** so OAuth comes back to the right place.
 
@@ -168,16 +203,16 @@ lib/loader.js            script manifest + cache-busting VERSION (bump on deploy
 lib/UI.js                small DOM builder used throughout
 lib/marked.min.js        Markdown renderer (vendored)
 
-js/core/                 no screen position — model, services, utilities
+js/core/                 no screen position - model, services, utilities
   state.js               in-memory app state
-  cloud.js               Supabase data layer (profiles, worlds, follows, likes, …)
+  cloud.js               Supabase data layer (profiles, worlds, follows, likes, ...)
   data.js                world/group/item model helpers
   seen.js                per-element "seen" tracking
   prefs.js               viewer-side display prefs (Cards / Expanded per group)
   icons.js  markdown.js  xml.js
 
 js/shell/                the persistent frame around the content area
-  boot.js                bootstrap — the only file that runs on load; stays last
+  boot.js                bootstrap - the only file that runs on load; stays last
   router.js              navigation + which view is active
   url.js                 query-string routing: shareable links, Back/Forward
   sidebar/
@@ -211,7 +246,7 @@ supabase.sql             full schema: tables, RLS policies, functions, triggers
 There is no bundler: every file declares plain globals, and `lib/loader.js`
 injects them in order with `async=false`. Two rules follow from that:
 
-- **Adding a file means adding it to the `FILES` list in `lib/loader.js`** —
+- **Adding a file means adding it to the `FILES` list in `lib/loader.js`** -
   otherwise it simply never loads.
 - **`js/shell/boot.js` must stay last.** Every other file only *declares*
   things; boot.js is the one that *runs*, so everything it touches has to exist

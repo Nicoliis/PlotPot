@@ -41,7 +41,15 @@ function renderWorldForm(mode) {
 
     if (editing) {
       Object.assign(State.currentWorld, payload);
-      await Cloud.saveWorld(State.currentWorld);
+      // This path bypasses saveData(), so it has to report for itself. Staying
+      // put on failure is deliberate: navigating away would drop the edits.
+      const res = await Cloud.saveWorld(State.currentWorld);
+      if (!res || !res.ok) {
+        window.Url?.toast?.(res && res.conflict
+          ? 'This world changed somewhere else. Reload before saving, or you will overwrite it.'
+          : 'Could not save world settings — nothing was stored', 6000);
+        return;
+      }
       navigate('home');
     } else {
       try {

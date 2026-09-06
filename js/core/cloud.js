@@ -104,11 +104,14 @@ const Cloud = (() => {
     return created;
   }
 
-  // Persist the open world (content edits + metadata). Fire-and-forget; logs on failure.
+  // Persist the open world (content edits + metadata).
+  // Returns { ok, error } rather than swallowing the outcome: the UI used to
+  // hide the Save button and navigate away whether or not the write landed, so
+  // a rejected save was indistinguishable from a successful one.
   async function saveWorld(world) {
     const db = _db(); const uid = _uid();
-    if (!db || !uid || !world?.id) return;
-    const { error } = await db.from('worlds').update({
+    if (!db || !uid || !world?.id) return { ok: false, error: new Error('Not signed in') };
+    const patch = {
       title: world.title,
       description: world.description,
       tags: world.tags,
@@ -117,8 +120,32 @@ const Cloud = (() => {
       data: world.data,
       element_updates: collectElementUpdates(world.data),
       updated_at: new Date().toISOString(),
-    }).eq('id', world.id);
-    if (error) console.error('saveWorld failed', error);
+    };
+
+    // Optimistic concurrency, feature-detected. `rev` rides along on getWorld's
+    // select('*'), so it is undefined until the column exists — and this file
+    // has to keep working against a project where the ALTER TABLE in
+    // supabase.sql has not been run yet. No column, no guard, old behaviour.
+    const rev = Number.isFinite(world.rev) ? world.rev : null;
+    if (rev !== null) patch.rev = rev + 1;
+
+    let q = db.from('worlds').update(patch).eq('id', world.id);
+    if (rev !== null) q = q.eq('rev', rev);
+
+    const { data: rows, error } = await q.select('id,rev');
+    if (error) { console.error('saveWorld failed', error); return { ok: false, error }; }
+
+    // No error and no row means the world is there but the rev moved: someone
+    // else wrote since this copy was loaded. Refusing is the entire point — the
+    // old code overwrote them and told nobody.
+    if (rev !== null && !(rows && rows.length)) {
+      return { ok: false, conflict: true, error: new Error('World was edited elsewhere') };
+    }
+
+    // Track the new rev so the next save from this tab is guarded against the
+    // one we just made, not the one we loaded.
+    if (rows && rows.length && Number.isFinite(rows[0].rev)) world.rev = rows[0].rev;
+    return { ok: true };
   }
 
   async function deleteWorld(id) {
