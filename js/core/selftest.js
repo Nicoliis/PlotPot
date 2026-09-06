@@ -139,6 +139,79 @@ const SelfTest = (() => {
     lacks(html, '<b>x</b>', 'display half must be escaped');
   });
 
+  /* ── Image sizing: `![alt|400](url)` ──────────────────────── */
+
+  test('imgSizeFromAlt: reads the size suffix, and only a real one', () => {
+    eq(imgSizeFromAlt('Aria|400'),    { alt: 'Aria', w: 400, h: 0 });
+    eq(imgSizeFromAlt('Map|600x400'), { alt: 'Map',  w: 600, h: 400 });
+    eq(imgSizeFromAlt('Aria | 400 '), { alt: 'Aria', w: 400, h: 0 }, 'spaces around the pipe');
+    // A pipe is legal in alt text. Only a pipe followed by digits is a size.
+    eq(imgSizeFromAlt('a|b'),         { alt: 'a|b',  w: 0, h: 0 });
+    eq(imgSizeFromAlt('a|b|300'),     { alt: 'a|b',  w: 300, h: 0 }, 'the LAST pipe wins');
+    eq(imgSizeFromAlt(''),            { alt: '',     w: 0, h: 0 });
+    eq(imgSizeFromAlt(null),          { alt: '',     w: 0, h: 0 });
+  });
+
+  test('imgSizeFromAlt/imgAltWithSize: round-trip', () => {
+    for (const a of ['Aria|400', 'a|b', 'a|b|300', '', 'Map|600x400', 'plain']) {
+      const p = imgSizeFromAlt(a);
+      eq(imgAltWithSize(p.alt, p.w, p.h), a, `"${a}" must survive a round-trip`);
+    }
+    eq(imgAltWithSize('x', 0, 0), 'x', 'width 0 removes the suffix — that is "Auto"');
+  });
+
+  test('markdown: a sized image gets a width, an unsized one gets none', () => {
+    has(renderMarkdown('![Aria|400](https://x/a.png)'), 'style="width:400px;height:auto"');
+    has(renderMarkdown('![Aria|400](https://x/a.png)'), 'alt="Aria"', 'the size is not left in the alt');
+    has(renderMarkdown('![Map|600x400](https://x/m.png)'), 'style="width:600px;height:400px"');
+    lacks(renderMarkdown('![Aria](https://x/a.png)'), 'style=', 'no size in the source, no style');
+  });
+
+  // md-live.js finds the clicked <img> back in the source by this attribute,
+  // so it has to spell the href the way the SOURCE does, not the way <img src>
+  // ends up after cleaning.
+  test('markdown: data-pp-src carries the source href', () => {
+    has(renderMarkdown('![a|200](https://x/a.png?p=1&q=2)'), 'data-pp-src="https://x/a.png?p=1&amp;q=2"');
+  });
+
+  // marked v15 interpolates the alt into `alt="…"` unescaped, so this rendered
+  // a live onerror handler into every reader's page before the renderer was
+  // overridden. Worlds are public; the content is someone else's.
+  test('markdown: image alt is escaped, not interpolated', () => {
+    const html = renderMarkdown('![x" onerror="alert(1)](https://ok.png/a.png)');
+    lacks(html, 'onerror="alert(1)"', 'a quote in the alt must not close the attribute');
+    has(html, '&quot;');
+  });
+
+  test('markdown: an image src cannot carry script', () => {
+    has(renderMarkdown('![a](javascript:alert(1))'), 'src=""');
+    has(renderMarkdown('![a](data:text/html;base64,PHM+)'), 'src=""', 'only data:image is allowed');
+    has(renderMarkdown('![a](data:image/png;base64,iVBOR)'), 'src="data:image/png;base64,iVBOR"');
+  });
+
+  // The resize writes into ONE image's alt and must leave every other character
+  // of the block alone — including a second copy of the same image.
+  test('_mdlImgSpans: locates each image, by href and ordinal', () => {
+    const t = 'a ![one|100](u1.png) b ![two](u2.png) c ![three](u1.png)';
+    const all = _mdlImgSpans(t);
+    eq(all.length, 3);
+    eq(all.map(s => s.href), ['u1.png', 'u2.png', 'u1.png']);
+    eq(all.map(s => s.alt), ['one|100', 'two', 'three']);
+    // Rewriting the second u1.png must not touch the first.
+    const s2 = all.filter(s => s.href === 'u1.png')[1];
+    eq(t.slice(0, s2.altStart) + 'three|250' + t.slice(s2.altEnd),
+       'a ![one|100](u1.png) b ![two](u2.png) c ![three|250](u1.png)');
+    // And the full span is what Backspace deletes.
+    const s0 = all[0];
+    eq(t.slice(0, s0.start) + t.slice(s0.end),
+       'a  b ![two](u2.png) c ![three](u1.png)');
+  });
+
+  test('_mdlImgSpans: a link is not an image', () => {
+    eq(_mdlImgSpans('[text](u.png) and ![img](v.png)').map(s => s.href), ['v.png']);
+    eq(_mdlImgSpans('![a](<u v.png> "Cap")')[0].href, 'u v.png', 'angle-bracketed href, with a title');
+  });
+
   /* ── isGroupVisible — the gate C1 added to search ─────────── */
 
   const tree = () => ({

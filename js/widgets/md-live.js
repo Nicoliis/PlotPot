@@ -270,6 +270,7 @@ function _mdlMountActive(inst, b) {
 // Give every block a fresh element. The caret is restored afterwards from an
 // absolute offset, so throwing the DOM away is safe.
 function _mdlPaint(inst) {
+  _mdlDropImgSel(inst);        // these block elements are about to be discarded
   inst.active = -1;
   inst.root.innerHTML = '';
   inst.blocks.forEach(b => {
@@ -296,6 +297,9 @@ function _mdlDeactivate(inst) {
 }
 
 function _mdlActivate(inst, i) {
+  // A block being edited shows raw text, so there is no image to stay selected
+  // on — and the active block must never be the one wearing an overlay.
+  _mdlDropImgSel(inst);
   if (inst.active === i) return;
   if (inst.active !== -1) _mdlDeactivate(inst);
   const b = inst.blocks[i];
@@ -464,6 +468,321 @@ function _mdlStep(inst, dir) {
   inst.fire();
 }
 
+/* ── Image sizing ──────────────────────────────────────────────────
+   Editing `![alt|400](url)` as text means losing sight of the thing you are
+   sizing, which is the one job a live editor has. So an image here is a real
+   object: click it and you get a frame, a corner grip, and a bar that says how
+   wide it is.
+
+   The whole feature is a projection. The SOURCE is still the only truth — a
+   resize rewrites the alt suffix of one `![…](…)` span and nothing else, so
+   Ctrl+Z, the Save button, the markdown export and a reader's rendered page all
+   see it the same way. Nothing is stored about "the selected image" beyond
+   where to write next.
+
+   Two invariants keep it from fighting the editor:
+     • the selected image's block is never the ACTIVE block. An active block
+       shows raw text and has no <img> in it at all, so the two states are
+       mutually exclusive by construction, and the selection is dropped by
+       _mdlPaint and _mdlActivate rather than by remembering to.
+     • every overlay node is contenteditable="false" and lives inside the
+       block, which is already position:relative. Inactive blocks are never read
+       back into the model (_mdlCommit only touches the active one), so the
+       chrome cannot leak into the document's text. */
+
+const _MDL_IMG_MIN_W = 40;
+const _MDL_IMG_BAR_H = 38;      // mirrors .mdl-img-bar's height in components.css
+
+// Every `![alt](href)` in a block's source, with the offsets of its alt text —
+// the only part a resize rewrites. Matching by href AND ordinal is what lets a
+// block hold several images, including several copies of the same one.
+const _MDL_IMG_RE = /!\[([^\]]*)\]\(\s*(<[^>]*>|[^\s)]*)(?:\s+("[^"]*"|'[^']*'|\([^)]*\)))?\s*\)/g;
+
+function _mdlImgSpans(text) {
+  const out = [];
+  _MDL_IMG_RE.lastIndex = 0;
+  let m;
+  while ((m = _MDL_IMG_RE.exec(text))) {
+    let href = m[2] || '';
+    if (href.startsWith('<') && href.endsWith('>')) href = href.slice(1, -1);
+    out.push({
+      href,
+      alt: m[1],
+      start: m.index,
+      end: m.index + m[0].length,
+      altStart: m.index + 2,                    // just past '!['
+      altEnd: m.index + 2 + m[1].length,
+    });
+  }
+  return out;
+}
+
+// The content width the image is being sized against — its own line box, not
+// the pane, so an image inside a list indent gets the honest number.
+function _mdlImgMaxW(img) {
+  const p = img.parentElement;
+  if (!p) return _MDL_IMG_MIN_W;
+  const cs = getComputedStyle(p);
+  const w = p.clientWidth - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0);
+  return Math.max(_MDL_IMG_MIN_W, Math.round(w));
+}
+
+function _mdlClearImgSel(inst) {
+  const sel = inst.imgSel;
+  if (!sel) return;
+  inst.imgSel = null;
+  window.removeEventListener('resize', sel.reflow);
+  document.removeEventListener('mousedown', sel.outside);
+  sel.ui?.remove();
+}
+
+// Called on every mutation path that throws block elements away, so a stale
+// overlay can never outlive the <img> it was measuring.
+function _mdlDropImgSel(inst) { if (inst && inst.imgSel) _mdlClearImgSel(inst); }
+
+function _mdlSelectImage(inst, img) {
+  // Raw-HTML <img> in the markdown: no `![…](…)` span to write back to, so it
+  // is not ours to resize. Better to leave it inert than to offer a grip that
+  // silently does nothing.
+  if (!img || !img.dataset.ppSrc) return;
+
+  _mdlClearImgSel(inst);
+
+  // Leaving another block active would keep its raw markers on screen while
+  // the user is plainly working on an image somewhere else. Deactivate FIRST:
+  // it re-renders that block, which changes the layout the overlay is about to
+  // be measured against.
+  if (inst.active !== -1) _mdlDeactivate(inst);
+
+  const blockEl = _mdlBlockElOf(inst, img);
+  if (!blockEl) return;
+  const i = [...inst.root.children].indexOf(blockEl);
+  if (i === -1 || !inst.blocks[i]) return;
+
+  const href = img.dataset.ppSrc;
+  const same = [...blockEl.querySelectorAll('img')].filter(x => x.dataset.ppSrc === href);
+
+  const sel = { i, img, blockEl, href, n: same.indexOf(img), ui: null, reflow: null };
+  sel.reflow = () => { if (inst.imgSel === sel) _mdlPlaceImgUI(inst); };
+  // A click outside the editor entirely. It cannot fire for the click that made
+  // this selection, because that one was stopped in root's capture phase and
+  // never reaches the document. isConnected is the escape hatch for a
+  // renderCurrentView() that wiped the editor while an image was selected.
+  sel.outside = e => {
+    if (!inst.root.isConnected) { _mdlClearImgSel(inst); return; }
+    if (!inst.root.contains(e.target)) _mdlClearImgSel(inst);
+  };
+  inst.imgSel = sel;
+
+  _mdlBuildImgUI(inst, sel);
+  window.addEventListener('resize', sel.reflow);
+  document.addEventListener('mousedown', sel.outside);
+
+  // The click that got here was preventDefault()ed, so the browser neither
+  // focused the editor nor placed a caret. Focus is needed for Backspace and
+  // Escape to arrive at all; the empty selection is deliberate — a caret parked
+  // in an INACTIVE block is how you end up typing into rendered HTML that
+  // nothing ever commits.
+  inst.root.focus({ preventScroll: true });
+  try { window.getSelection()?.removeAllRanges(); } catch { /* no selection to clear */ }
+
+  // An image that hasn't decoded yet has a zero box, so the frame would land
+  // on nothing. Re-measure once it has one.
+  if (!img.complete) img.addEventListener('load', sel.reflow, { once: true });
+}
+
+function _mdlBuildImgUI(inst, sel) {
+  const ui = document.createElement('div');
+  ui.className = 'mdl-img-ui';
+  ui.setAttribute('contenteditable', 'false');
+
+  const frame = document.createElement('div');
+  frame.className = 'mdl-img-frame';
+  const grip = document.createElement('span');
+  grip.className = 'mdl-img-grip';
+  grip.title = 'Drag to resize';
+  frame.appendChild(grip);
+
+  const bar = document.createElement('div');
+  bar.className = 'mdl-img-bar';
+
+  const input = document.createElement('input');
+  input.className = 'mdl-img-w';
+  input.type = 'number';
+  input.min = String(_MDL_IMG_MIN_W);
+  input.step = '10';
+  input.title = 'Width in pixels';
+
+  const unit = document.createElement('span');
+  unit.className = 'mdl-img-unit';
+  unit.textContent = 'px';
+  bar.appendChild(input);
+  bar.appendChild(unit);
+
+  // Percentages of the column rather than fixed pixel presets: the same button
+  // then means the same thing in the 860px detail pane and on a phone.
+  [25, 50, 75].forEach(pct => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mdl-img-preset';
+    b.textContent = pct + '%';
+    b.addEventListener('click', () =>
+      _mdlWriteImgWidth(inst, Math.round(_mdlImgMaxW(sel.img) * pct / 100)));
+    bar.appendChild(b);
+  });
+
+  const auto = document.createElement('button');
+  auto.type = 'button';
+  auto.className = 'mdl-img-preset mdl-img-auto';
+  auto.textContent = 'Auto';
+  auto.title = 'Remove the size — the image fits the column';
+  auto.addEventListener('click', () => _mdlWriteImgWidth(inst, 0));
+  bar.appendChild(auto);
+
+  const commit = () => {
+    const v = parseInt(input.value, 10);
+    _mdlWriteImgWidth(inst, Number.isNaN(v) ? 0 : v);
+  };
+  input.addEventListener('change', commit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    e.stopPropagation();          // Ctrl+Z in the field is the field's own undo
+  });
+
+  _mdlWireImgGrip(inst, sel, grip);
+
+  ui.appendChild(frame);
+  ui.appendChild(bar);
+  sel.blockEl.appendChild(ui);
+  sel.ui = ui;
+  sel.frame = frame;
+  sel.bar = bar;
+  sel.input = input;
+
+  _mdlPlaceImgUI(inst);
+}
+
+// Pointer events, not mouse: this is the one gesture in the app that has to
+// work under a finger, and setPointerCapture keeps the drag alive when the
+// pointer leaves the grip — which it does immediately, by definition.
+function _mdlWireImgGrip(inst, sel, grip) {
+  let startX = 0, startW = 0, maxW = 0, live = 0, dragging = false;
+
+  grip.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragging = true;
+    startX = e.clientX;
+    startW = sel.img.getBoundingClientRect().width;
+    maxW = _mdlImgMaxW(sel.img);
+    live = Math.round(startW);
+    grip.setPointerCapture?.(e.pointerId);
+    sel.ui.classList.add('mdl-img-ui--resizing');
+  });
+
+  grip.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    e.preventDefault();
+    live = Math.max(_MDL_IMG_MIN_W, Math.min(maxW, Math.round(startW + (e.clientX - startX))));
+    // Preview on the element only. Rewriting the source per pointermove would
+    // put a hundred entries on the undo stack for one drag and re-render the
+    // block out from under the pointer.
+    sel.img.style.width = live + 'px';
+    sel.img.style.height = 'auto';
+    sel.input.value = String(live);
+    _mdlPlaceImgUI(inst);
+  });
+
+  const end = e => {
+    if (!dragging) return;
+    dragging = false;
+    grip.releasePointerCapture?.(e.pointerId);
+    sel.ui.classList.remove('mdl-img-ui--resizing');
+    _mdlWriteImgWidth(inst, live);      // one source edit, one undo step
+  };
+  grip.addEventListener('pointerup', end);
+  grip.addEventListener('pointercancel', end);
+}
+
+function _mdlPlaceImgUI(inst) {
+  const sel = inst.imgSel;
+  if (!sel || !sel.ui || !sel.img.isConnected) return;
+
+  const ib = sel.img.getBoundingClientRect();
+  const bb = sel.blockEl.getBoundingClientRect();
+  const left = ib.left - bb.left, top = ib.top - bb.top;
+
+  sel.frame.style.left   = left + 'px';
+  sel.frame.style.top    = top + 'px';
+  sel.frame.style.width  = ib.width + 'px';
+  sel.frame.style.height = ib.height + 'px';
+
+  /* The bar rides ON the image, inset from its bottom-left corner. Anywhere
+     OUTSIDE the image box it lands on the neighbouring paragraph instead: the
+     overlay is absolute, so the block's box never grows to make room for it,
+     and .md-live clips at 600px so there is no guaranteed gutter either way.
+     On the image it is attached to the thing it edits and can collide with
+     nothing. The exception is an image too short to hold it, which by the same
+     token is too short to be worth covering. */
+  const inset = 8;
+  const fits  = ib.height >= _MDL_IMG_BAR_H + inset * 2;
+
+  sel.bar.style.left = (left + (fits ? inset : 0)) + 'px';
+  sel.bar.style.top  = (fits ? top + ib.height - _MDL_IMG_BAR_H - inset
+                             : top + ib.height + 6) + 'px';
+
+  if (document.activeElement !== sel.input) sel.input.value = String(Math.round(ib.width));
+}
+
+/* The only writer. Rewrites ONE image's alt suffix inside one block's text,
+   leaving every other character — and every other image in that block —
+   exactly as it was. w = 0 removes the suffix ("Auto"). */
+function _mdlWriteImgWidth(inst, w) {
+  const sel = inst.imgSel;
+  if (!sel) return;
+  const b = inst.blocks[sel.i];
+  if (!b) { _mdlClearImgSel(inst); return; }
+
+  const span = _mdlImgSpans(b.text).filter(s => s.href === sel.href)[sel.n];
+  if (!span) { _mdlClearImgSel(inst); return; }   // the source moved under us
+
+  const width = w ? Math.max(_MDL_IMG_MIN_W, Math.min(_mdlImgMaxW(sel.img), Math.round(w))) : 0;
+  const alt = imgAltWithSize(imgSizeFromAlt(span.alt).alt, width, 0);
+  const next = b.text.slice(0, span.altStart) + alt + b.text.slice(span.altEnd);
+  if (next === b.text) { _mdlPlaceImgUI(inst); return; }
+
+  _mdlPush(inst);                       // the state we are leaving
+  b.text = next;
+  inst.md = _mdlJoin(inst);
+  const href = sel.href, i = sel.i, n = sel.n;
+  _mdlClearImgSel(inst);                // the overlay's <img> is about to be replaced
+  _mdlRenderInactive(inst, inst.blocks[i]);
+  inst.fire();                          // INV-2: onChange and Save see it now
+  _mdlPush(inst);
+
+  // Re-attach to the same image so the drag can continue where it left off.
+  const again = [...inst.blocks[i].el.querySelectorAll('img')].filter(x => x.dataset.ppSrc === href)[n];
+  if (again) _mdlSelectImage(inst, again);
+}
+
+// Backspace/Delete on a selected image removes the whole `![…](…)`. Through
+// _mdlSetTexts, so it is one undo step and an emptied block survives as an
+// empty paragraph rather than being swallowed by a re-lex.
+function _mdlDeleteImg(inst) {
+  const sel = inst.imgSel;
+  if (!sel) return;
+  const b = inst.blocks[sel.i];
+  if (!b) { _mdlClearImgSel(inst); return; }
+  const span = _mdlImgSpans(b.text).filter(s => s.href === sel.href)[sel.n];
+  if (!span) { _mdlClearImgSel(inst); return; }
+
+  const texts = _mdlTexts(inst);
+  texts[sel.i] = b.text.slice(0, span.start) + b.text.slice(span.end);
+  const caret = _mdlStart(inst, sel.i) + span.start;
+  _mdlClearImgSel(inst);
+  _mdlSetTexts(inst, texts, caret);
+}
+
 /* ── Public ────────────────────────────────────────────────────── */
 
 /**
@@ -493,6 +812,7 @@ function makeLiveEditor(content, onChange, opts) {
   const inst = {
     root, blocks: [], active: -1, md: _mdlNorm(content),
     sel: { a: 0, b: 0 }, hist: _mdlHist(), composing: false,
+    imgSel: null,              // the image being sized, if any (see Image sizing)
     onChange,
     fire() { onChange(inst.md); },
   };
@@ -664,6 +984,45 @@ function makeLiveEditor(content, onChange, opts) {
     _mdlSetOffsetIn(inst.blocks[i].el, off);
     _mdlReadSel(inst);
   });
+
+  /* ── Selecting an image ───────────────────────────────────────────
+     CAPTURE phase, and that is the whole trick: the mousedown handler above is
+     bound to this same element in the bubble phase, so a capture listener here
+     runs before the event ever reaches the image — stopPropagation() then means
+     the click never becomes "put the caret in that block", which would swap the
+     image for its raw `![…](…)` text under the pointer. */
+  root.addEventListener('mousedown', e => {
+    // Our own chrome: swallow it so the block stays put. NOT preventDefault —
+    // the width field still has to be able to take focus.
+    if (e.target.closest?.('.mdl-img-ui')) { e.stopPropagation(); return; }
+
+    if (e.target.tagName === 'IMG' && e.target.dataset.ppSrc) {
+      e.preventDefault();
+      e.stopPropagation();
+      _mdlSelectImage(inst, e.target);
+      return;
+    }
+    _mdlDropImgSel(inst);       // clicked away: back to ordinary text editing
+  }, true);
+
+  /* Keys while an image is selected. Also capture, so Backspace here can never
+     fall through to the structural Backspace below and merge two blocks. */
+  root.addEventListener('keydown', e => {
+    if (!inst.imgSel) return;
+    if (e.target.closest?.('.mdl-img-ui')) return;    // digits typed into the width field
+    // Ctrl+Z is not "typing a z". Every shortcut belongs to the handlers below,
+    // including undo — which is how you take a resize back.
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      e.preventDefault(); e.stopPropagation(); _mdlDeleteImg(inst); return;
+    }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); _mdlDropImgSel(inst); return; }
+    // A printable key means "I'm done with the image" — but it is NOT inserted.
+    // There is deliberately no caret while an image is selected (see above), so
+    // there is no honest place to put the character; guessing one would land it
+    // in a block the user never pointed at. Deselect, and let them click.
+    if (e.key.length === 1 || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); _mdlDropImgSel(inst); }
+  }, true);
 
   // Refs are styled but must never navigate out of an unsaved edit — the same
   // discipline md-panel applies to its preview pane, widened to every anchor.
