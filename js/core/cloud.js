@@ -132,7 +132,11 @@ const Cloud = (() => {
     let q = db.from('worlds').update(patch).eq('id', world.id);
     if (rev !== null) q = q.eq('rev', rev);
 
-    const { data: rows, error } = await q.select('id,rev');
+    // The select has to be feature-detected too. Asking PostgREST for a column
+    // that doesn't exist is a 400, so `select('id,rev')` turned "no rev column"
+    // from the intended graceful degradation into every save failing — the one
+    // outcome the detection above exists to prevent.
+    const { data: rows, error } = await q.select(rev !== null ? 'id,rev' : 'id');
     if (error) { console.error('saveWorld failed', error); return { ok: false, error }; }
 
     // No error and no row means the world is there but the rev moved: someone
